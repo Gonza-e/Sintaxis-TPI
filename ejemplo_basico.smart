@@ -1,0 +1,68 @@
+// ================================================================
+// SMART-HOME  --  Archivo de prueba v2
+// Ejercita todos los tokens ATTR_* y los rangos nombrados.
+// ================================================================
+
+// -- Bloque 1: foco  (RANGO_PERCENT en brillo) --
+WHEN sensor_luz < 250lux DO
+    foco_entrada.estado = ON
+    foco_entrada.brillo = 80%
+    foco_entrada.color  = blanco
+    foco_patio.estado   = ON
+    foco_patio.brillo   = 110%
+    foco_patio.color    = azul
+END
+
+// -- Bloque 2: aire  (RANGO_TEMP_1 en sensor, RANGO_TEMP_2 en temp_obj) --
+WHEN sensor_movimiento == TRUE DO
+    IF sensor_temp > 26°C THEN
+        aire_acondicionado.estado    = ON
+        aire_acondicionado.modo      = FRIO
+        aire_acondicionado.temp_obj  = 22°C
+    ELSE
+        IF sensor_temp < -15°C THEN
+            aire_acondicionado.estado   = ON
+            aire_acondicionado.modo     = CALOR
+            aire_acondicionado.temp_obj = 35°C
+        ELSE
+            aire_acondicionado.estado = OFF
+        END
+    END
+END
+
+// -- Bloque 3: persiana y cerradura  (RANGO_PERCENT en posicion) --
+EVERY 30m DO
+    IF reloj_principal.hora > 22:00 AND alarma_casa.estado == OFF THEN
+        persiana_sala.posicion     = 0%
+        persiana_comedor.posicion  = 120%
+        cerradura_principal.estado = ON
+    END
+END
+
+// -- Bloque 4: altavoz y email  (RANGO_PERCENT en volumen) --
+EVERY 1h DO
+    altavoz_comedor.volumen      = 50%
+    altavoz_comedor.mute         = OFF
+    altavoz_comedor.mensaje      = "Revisa la temperatura exterior"
+    altavoz_comedor.email_notif  = admin@smart-home.com.ar
+END
+
+// -- Bloque 5: alarma --
+IF sensor_humo == TRUE AND aire_acondicionado.estado == OFF THEN
+    alarma_principal.estado    = ON
+    alarma_principal.activada  = ON
+    aire_acondicionado.estado  = ON
+    aire_acondicionado.modo    = VENT
+    aire_acondicionado.temp_obj = 22°C
+    cerradura_principal.estado = OFF
+    persiana_comedor.posicion  = 100%
+    altavoz_comedor.volumen    = 200%
+    altavoz_comedor.mensaje    = "PELIGRO. HUMO DETECTADO"
+    altavoz_comedor.email_notif = bomberos@smart-home.com.ar
+END
+
+// -- Bloque 6: reloj (solo lectura) --
+IF reloj_principal.hora > 06:00 THEN
+    foco_jardin.estado = ON
+    foco_jardin.brillo = 60%
+END
