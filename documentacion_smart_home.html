@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentación — SMART-HOME Lexer & Parser</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── Variables ─────────────────────────────────────────────── */
+    :root {
+      --bg:        #0e0f14;
+      --bg2:       #15161e;
+      --bg3:       #1c1d28;
+      --border:    #2a2b3d;
+      --accent1:   #7c6af7;   /* violeta principal */
+      --accent2:   #3ecfb2;   /* verde-azul */
+      --accent3:   #f7a24b;   /* naranja */
+      --accent4:   #e05c7a;   /* rosa */
+      --txt:       #dde1f0;
+      --txt2:      #8890b0;
+      --txt3:      #555e80;
+      --code-bg:   #111320;
+      --lex-clr:   #3ecfb2;
+      --par-clr:   #7c6af7;
+      --font-head: 'Syne', sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+      --radius:    8px;
+    }
+
+    /* ── Reset & base ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--txt);
+      font-family: var(--font-head);
+      font-size: 15px;
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ────────────────────────────────────────────────── */
+    #sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 28px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    #sidebar .logo {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    #sidebar .logo h1 {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent1);
+    }
+    #sidebar .logo p {
+      font-size: 11px;
+      color: var(--txt3);
+      margin-top: 4px;
+      font-family: var(--font-code);
+    }
+    .nav-group { margin-bottom: 8px; }
+    .nav-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--txt3);
+      padding: 8px 24px 4px;
+    }
+    .nav-label.lex { color: var(--lex-clr); }
+    .nav-label.par { color: var(--par-clr); }
+    .nav-item {
+      display: block;
+      padding: 6px 24px 6px 32px;
+      font-size: 13px;
+      color: var(--txt2);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: all .15s;
+      font-family: var(--font-code);
+    }
+    .nav-item:hover {
+      color: var(--txt);
+      background: var(--bg3);
+      border-left-color: var(--accent1);
+    }
+    .nav-item.lex:hover  { border-left-color: var(--lex-clr); }
+    .nav-item.par:hover  { border-left-color: var(--par-clr); }
+    .nav-item.active { color: var(--txt); border-left-color: var(--accent1); background: var(--bg3); }
+
+    /* ── Main content ───────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      padding: 48px 56px;
+      max-width: 960px;
+    }
+
+    /* ── Hero ───────────────────────────────────────────────────── */
+    .hero {
+      margin-bottom: 64px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero .tag {
+      display: inline-block;
+      font-family: var(--font-code);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      border: 1px solid var(--accent2);
+      border-radius: 4px;
+      padding: 3px 10px;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 12px;
+      letter-spacing: -.01em;
+    }
+    .hero h1 span { color: var(--accent1); }
+    .hero p {
+      font-size: 16px;
+      color: var(--txt2);
+      max-width: 620px;
+    }
+    .pipeline-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 28px;
+      flex-wrap: wrap;
+    }
+    .pipe-node {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      font-family: var(--font-code);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pipe-node.lex  { border-color: var(--lex-clr); color: var(--lex-clr); }
+    .pipe-node.par  { border-color: var(--par-clr); color: var(--par-clr); }
+    .pipe-node.ast  { border-color: var(--accent3); color: var(--accent3); }
+    .pipe-node.html { border-color: var(--accent4); color: var(--accent4); }
+    .pipe-node.src  { color: var(--txt2); }
+    .pipe-arrow { color: var(--txt3); font-size: 18px; }
+
+    /* ── Sección ────────────────────────────────────────────────── */
+    .section {
+      margin-bottom: 64px;
+      scroll-margin-top: 32px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-badge {
+      font-family: var(--font-code);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .badge-lex  { background: rgba(62,207,178,.15); color: var(--lex-clr); }
+    .badge-par  { background: rgba(124,106,247,.15); color: var(--par-clr); }
+    .badge-gen  { background: rgba(247,162,75,.15);  color: var(--accent3); }
+    .section-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+
+    /* ── Tarjeta de función ────────────────────────────────────── */
+    .fn-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .fn-card:hover { border-color: var(--accent1); }
+    .fn-card.lex:hover  { border-color: var(--lex-clr); }
+    .fn-card.par:hover  { border-color: var(--par-clr); }
+
+    .fn-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--bg3);
+      cursor: pointer;
+      user-select: none;
+    }
+    .fn-kind {
+      font-family: var(--font-code);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      flex-shrink: 0;
+    }
+    .kind-method  { background: rgba(62,207,178,.2);  color: var(--lex-clr); }
+    .kind-func    { background: rgba(247,162,75,.2);   color: var(--accent3); }
+    .kind-class   { background: rgba(124,106,247,.2);  color: var(--par-clr); }
+    .kind-data    { background: rgba(224,92,122,.2);   color: var(--accent4); }
+    .kind-const   { background: rgba(136,144,176,.2);  color: var(--txt2); }
+
+    .fn-name {
+      font-family: var(--font-code);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--txt);
+      flex: 1;
+    }
+    .fn-brief {
+      font-size: 12px;
+      color: var(--txt2);
+      flex: 2;
+      font-family: var(--font-code);
+    }
+    .fn-toggle {
+      color: var(--txt3);
+      font-size: 18px;
+      transition: transform .2s;
+      flex-shrink: 0;
+    }
+    .fn-card.open .fn-toggle { transform: rotate(90deg); }
+
+    .fn-body {
+      display: none;
+      padding: 20px 24px;
+      border-top: 1px solid var(--border);
+    }
+    .fn-card.open .fn-body { display: block; }
+
+    .fn-desc {
+      color: var(--txt);
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .fn-sig {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-family: var(--font-code);
+      font-size: 13px;
+      color: var(--accent2);
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+    .param-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .param-table th {
+      text-align: left;
+      padding: 6px 12px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--txt3);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-code);
+    }
+    .param-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .param-table tr:last-child td { border-bottom: none; }
+    .param-name { font-family: var(--font-code); color: var(--accent3); }
+    .param-type { font-family: var(--font-code); color: var(--lex-clr); font-size: 12px; }
+    .param-desc { color: var(--txt2); }
+    .ret-box {
+      background: var(--code-bg);
+      border-left: 3px solid var(--accent2);
+      padding: 10px 14px;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .ret-box .ret-label {
+      font-family: var(--font-code);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--txt3);
+      margin-bottom: 4px;
+    }
+    .ret-box .ret-val { font-family: var(--font-code); color: var(--accent2); }
+    .note-box {
+      background: rgba(124,106,247,.08);
+      border: 1px solid rgba(124,106,247,.25);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--txt2);
+      margin-top: 12px;
+    }
+    .note-box strong { color: var(--accent1); }
+
+    /* ── Tabla de datos ─────────────────────────────────────────── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .data-table th {
+      text-align: left;
+      padding: 8px 14px;
+      background: var(--bg3);
+      font-family: var(--font-code);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--txt3);
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--bg3); }
+    .tt { font-family: var(--font-code); color: var(--accent3); font-size: 12px; }
+    .ex { font-family: var(--font-code); color: var(--lex-clr); font-size: 12px; }
+
+    /* ── Diagrama de flujo (ASCII art) ──────────────────────────── */
+    .flow-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      font-family: var(--font-code);
+      font-size: 13px;
+      color: var(--txt2);
+      margin-bottom: 28px;
+      overflow-x: auto;
+      line-height: 1.9;
+    }
+    .flow-box .hi1 { color: var(--lex-clr); }
+    .flow-box .hi2 { color: var(--par-clr); }
+    .flow-box .hi3 { color: var(--accent3); }
+    .flow-box .hi4 { color: var(--accent4); }
+
+    /* ── Callout ────────────────────────────────────────────────── */
+    .callout {
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .callout-info  { background: rgba(62,207,178,.08); border: 1px solid rgba(62,207,178,.2); color: var(--txt2); }
+    .callout-warn  { background: rgba(247,162,75,.08); border: 1px solid rgba(247,162,75,.2); color: var(--txt2); }
+    .callout strong { font-weight: 700; }
+    .callout-info  strong { color: var(--lex-clr); }
+    .callout-warn  strong { color: var(--accent3); }
+
+    /* ── Utilidades ─────────────────────────────────────────────── */
+    h3 { font-size: 16px; font-weight: 700; color: var(--txt); margin: 24px 0 12px; }
+    p  { color: var(--txt2); margin-bottom: 12px; font-size: 14px; }
+    code {
+      font-family: var(--font-code);
+      font-size: 12px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--accent3);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════ SIDEBAR ════════════════════ -->
+<nav id="sidebar">
+  <div class="logo">
+    <h1>SMART-HOME</h1>
+    <p>Lexer &amp; Parser — Docs v2.0</p>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">General</div>
+    <a class="nav-item" href="#pipeline">Pipeline completo</a>
+    <a class="nav-item" href="#tokens">Tabla de tokens</a>
+    <a class="nav-item" href="#rangos">Rangos nombrados</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label lex">Lexer — lexer.py</div>
+    <a class="nav-item lex" href="#token-class">clase Token</a>
+    <a class="nav-item lex" href="#tt-class">clase TT</a>
+    <a class="nav-item lex" href="#tablas">Tablas de clasificación</a>
+    <a class="nav-item lex" href="#helpers">Helpers numéricos</a>
+    <a class="nav-item lex" href="#smarthomelexer">clase SmartHomeLexer</a>
+    <a class="nav-item lex" href="#lex-tokenizar">  tokenizar()</a>
+    <a class="nav-item lex" href="#lex-tokenizar-linea">  tokenizar_linea()</a>
+    <a class="nav-item lex" href="#lex-reset-ctx">  _reset_ctx()</a>
+    <a class="nav-item lex" href="#lex-procesar-linea">  _procesar_linea()</a>
+    <a class="nav-item lex" href="#lex-clasificar">  _clasificar()</a>
+    <a class="nav-item lex" href="#lex-prefijo">  _prefijo_canonico()</a>
+    <a class="nav-item lex" href="#lex-actualizar-ctx">  _actualizar_ctx()</a>
+    <a class="nav-item lex" href="#lex-validar-rango">  _validar_rango()</a>
+    <a class="nav-item lex" href="#lex-modos">  modo_interactivo() / modo_archivo()</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label par">Parser — parser.py</div>
+    <a class="nav-item par" href="#nodos">Nodos del AST</a>
+    <a class="nav-item par" href="#error-sint">ErrorSintactico</a>
+    <a class="nav-item par" href="#parser-class">clase Parser</a>
+    <a class="nav-item par" href="#par-actual">  _actual() / _es()</a>
+    <a class="nav-item par" href="#par-consumir">  _consumir()</a>
+    <a class="nav-item par" href="#par-avanzar">  _avanzar()</a>
+    <a class="nav-item par" href="#par-sincronizar">  _sincronizar()</a>
+    <a class="nav-item par" href="#par-parsear">  parsear()</a>
+    <a class="nav-item par" href="#par-instruccion">  _instruccion()</a>
+    <a class="nav-item par" href="#par-when">  _bloque_when()</a>
+    <a class="nav-item par" href="#par-every">  _bloque_every()</a>
+    <a class="nav-item par" href="#par-cuerpo">  _cuerpo()</a>
+    <a class="nav-item par" href="#par-accion">  _accion()</a>
+    <a class="nav-item par" href="#par-condicional">  _condicional()</a>
+    <a class="nav-item par" href="#par-condicion">  _condicion()</a>
+    <a class="nav-item par" href="#par-exprcond">  _expr_cond()</a>
+    <a class="nav-item par" href="#par-asignacion">  _asignacion()</a>
+    <a class="nav-item par" href="#par-valores">  _valor_asig() / _valor_literal()</a>
+    <a class="nav-item par" href="#recolector">clase Recolector</a>
+    <a class="nav-item par" href="#htmlemitter">clase HtmlEmitter</a>
+    <a class="nav-item par" href="#compilar">  compilar()</a>
+  </div>
+</nav>
+
+<!-- ════════════════════ MAIN ════════════════════ -->
+<main id="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="tag">UTN FRRe — Sintaxis y Semántica de Lenguajes 2026</div>
+    <h1>Documentación técnica<br><span>SMART-HOME</span> Lexer &amp; Parser</h1>
+    <p>Referencia completa de todas las clases, funciones y estructuras de datos que componen el analizador léxico y el parser/traductor HTML del lenguaje SMART-HOME.</p>
+    <div class="pipeline-row">
+      <div class="pipe-node src">archivo.smart</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node lex">Lexer</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node src">tokens[]</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node par">Parser</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node ast">AST</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node ast">Recolector</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node html">HtmlEmitter</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node html">archivo.html</div>
+    </div>
+  </div>
+
+  <!-- ─── PIPELINE ─── -->
+  <section class="section" id="pipeline">
+    <div class="section-header">
+      <span class="section-badge badge-gen">General</span>
+      <h2>Pipeline completo</h2>
+    </div>
+    <div class="flow-box">
+<span class="hi1">FASE 1 — Análisis léxico  (lexer.py)</span>
+  fuente (str)
+    └─ SmartHomeLexer.tokenizar()
+         ├─ _procesar_linea()   ← por cada línea del texto
+         │    ├─ _REGEX_MASTER.match()   ← un único regex compilado
+         │    ├─ _clasificar()           ← categoriza IDENTIFICADOR
+         │    ├─ _actualizar_ctx()       ← mantiene contexto dispositivo→atributo
+         │    └─ _validar_rango()        ← advertencias semánticas tempranas
+         └─ retorna  List[Token]
+
+<span class="hi2">FASE 2 — Análisis sintáctico  (parser.py)</span>
+  List[Token]
+    └─ Parser.parsear()
+         ├─ _instruccion()
+         │    ├─ _bloque_when()   →  WHEN condicion DO cuerpo END
+         │    ├─ _bloque_every()  →  EVERY TIEMPO DO cuerpo END
+         │    ├─ _condicional()   →  IF condicion THEN … [ELSE …] END
+         │    └─ _asignacion()    →  ACTUADOR.ATTR = valor
+         └─ retorna  NodoPrograma (AST)
+
+<span class="hi3">FASE 3 — Recolección de contexto  (parser.py)</span>
+  NodoPrograma
+    └─ Recolector.recolectar()
+         ├─ _seccion_when / _seccion_every / _seccion_if
+         ├─ _procesar_cuerpo()
+         ├─ _volcar_asignacion()
+         └─ retorna  List[InfoSeccion]
+
+<span class="hi4">FASE 4 — Emisión HTML  (parser.py)</span>
+  List[InfoSeccion]
+    └─ HtmlEmitter.emitir()
+         ├─ _renderizar_seccion()
+         ├─ _renderizar_sensor()    →  &lt;div green&gt;&lt;h2&gt;…&lt;/h2&gt;&lt;/div&gt;
+         ├─ _renderizar_actuador()  →  &lt;div gray&gt;&lt;h1&gt;…&lt;/h1&gt;&lt;ul&gt;…&lt;/ul&gt;&lt;/div&gt;
+         └─ _renderizar_item()      →  &lt;li&gt; o &lt;a href="mailto:…"&gt;
+</div>
+  </section>
+
+  <!-- ─── TABLA DE TOKENS ─── -->
+  <section class="section" id="tokens">
+    <div class="section-header">
+      <span class="section-badge badge-gen">General</span>
+      <h2>Tabla de tokens</h2>
+    </div>
+    <p>Todos los tipos de token que el Lexer puede emitir, definidos como constantes de cadena en la clase <code>TT</code>.</p>
+    <table class="data-table">
+      <thead><tr><th>Constante TT</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
+      <tbody>
+        <tr><td class="tt">WHEN / IF / THEN / ELSE / DO / END / EVERY</td><td>Palabras reservadas del lenguaje</td><td class="ex">WHEN … DO … END</td></tr>
+        <tr><td class="tt">AND / OR / NOT</td><td>Operadores lógicos</td><td class="ex">sensor_temp &gt; 25°C AND …</td></tr>
+        <tr><td class="tt">TRUE / FALSE</td><td>Booleanos de sensores</td><td class="ex">sensor_movimiento == TRUE</td></tr>
+        <tr><td class="tt">ON / OFF</td><td>Booleanos de actuadores</td><td class="ex">foco_sala.estado = ON</td></tr>
+        <tr><td class="tt">FRIO / CALOR / VENT</td><td>Modos discretos del aire</td><td class="ex">aire_ac.modo = FRIO</td></tr>
+        <tr><td class="tt">BLANCO / ROJO / AZUL</td><td>Colores del foco</td><td class="ex">foco_p.color = azul</td></tr>
+        <tr><td class="tt">SENSOR</td><td>Nombre de sensor</td><td class="ex">sensor_luz</td></tr>
+        <tr><td class="tt">ACTUADOR</td><td>Nombre de actuador</td><td class="ex">foco_entrada</td></tr>
+        <tr><td class="tt">ATTR_ESTADO … ATTR_ACTIVADA</td><td>Atributos tipados (emitidos tras PUNTO)</td><td class="ex">.estado → ATTR_ESTADO</td></tr>
+        <tr><td class="tt">ATTR_GENERICO</td><td>Atributo desconocido</td><td class="ex">.cualquier_nombre</td></tr>
+        <tr><td class="tt">TEMPERATURA</td><td>Número + °C</td><td class="ex">25°C, -5°C</td></tr>
+        <tr><td class="tt">PORCENTAJE</td><td>Número + %</td><td class="ex">80%</td></tr>
+        <tr><td class="tt">ILUMINANCIA</td><td>Número + lux</td><td class="ex">600lux</td></tr>
+        <tr><td class="tt">TIEMPO</td><td>Número + s / m / h</td><td class="ex">30m, 10s, 1h</td></tr>
+        <tr><td class="tt">HORA</td><td>HH:MM (24 h)</td><td class="ex">22:00</td></tr>
+        <tr><td class="tt">FECHA</td><td>DD/MM/AAAA</td><td class="ex">21/04/2026</td></tr>
+        <tr><td class="tt">EMAIL</td><td>Dirección de correo válida</td><td class="ex">user@dom.com.ar</td></tr>
+        <tr><td class="tt">CADENA</td><td>Texto entre comillas dobles</td><td class="ex">"mensaje aquí"</td></tr>
+        <tr><td class="tt">ENTERO / FLOTANTE</td><td>Números sin unidad</td><td class="ex">42, 3.14</td></tr>
+        <tr><td class="tt">OP_EQ / OP_NEQ / OP_GT / OP_LT / OP_GTE / OP_LTE</td><td>Operadores de comparación</td><td class="ex">== != &gt; &lt; &gt;= &lt;=</td></tr>
+        <tr><td class="tt">OP_ASIG</td><td>Operador de asignación</td><td class="ex">=</td></tr>
+        <tr><td class="tt">PUNTO</td><td>Separador dispositivo.atributo</td><td class="ex">.</td></tr>
+        <tr><td class="tt">COMENTARIO</td><td>Línea de comentario (descartada)</td><td class="ex">// texto</td></tr>
+        <tr><td class="tt">DESCONOCIDO</td><td>Carácter no reconocido (error)</td><td class="ex">@, #, …</td></tr>
+        <tr><td class="tt">EOF</td><td>Fin de archivo / entrada</td><td class="ex">—</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─── RANGOS ─── -->
+  <section class="section" id="rangos">
+    <div class="section-header">
+      <span class="section-badge badge-gen">General</span>
+      <h2>Rangos nombrados</h2>
+    </div>
+    <p>Tuplas exportables <code>(min, max, descripcion)</code> que el parser puede importar directamente para sus propias validaciones semánticas.</p>
+    <table class="data-table">
+      <thead><tr><th>Constante</th><th>Rango</th><th>Tipo literal</th><th>Usado por</th></tr></thead>
+      <tbody>
+        <tr><td class="tt">RANGO_TEMP_1</td><td>-10.0 °C a 50.0 °C</td><td class="ex">TEMPERATURA</td><td>sensor_temp, aire_.temp_act</td></tr>
+        <tr><td class="tt">RANGO_TEMP_2</td><td>16.0 °C a 30.0 °C</td><td class="ex">TEMPERATURA</td><td>aire_.temp_obj</td></tr>
+        <tr><td class="tt">RANGO_PERCENT</td><td>0 % a 100 %</td><td class="ex">PORCENTAJE</td><td>sensor_humedad, foco_.brillo, persiana_.posicion, altavoz_.volumen</td></tr>
+        <tr><td class="tt">RANGO_LUX</td><td>0 lux a 1000 lux</td><td class="ex">ILUMINANCIA</td><td>sensor_luz</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════ LEXER ══════════ -->
+
+  <!-- Token dataclass -->
+  <section class="section" id="token-class">
+    <div class="section-header">
+      <span class="section-badge badge-lex">Lexer</span>
+      <h2>clase Token</h2>
+    </div>
+    <div class="fn-card lex open">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-data">dataclass</span>
+        <span class="fn-name">Token</span>
+        <span class="fn-brief">Unidad mínima de información producida por el lexer</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Estructura inmutable que representa un token reconocido. Almacena el tipo (una constante de <code>TT</code>), el texto original del fuente, y la posición exacta donde fue encontrado.</p>
+        <table class="param-table">
+          <thead><tr><th>Campo</th><th>Tipo</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">tipo</td><td class="param-type">str</td><td class="param-desc">Constante de TT que clasifica el token (ej. <code>TT.SENSOR</code>)</td></tr>
+            <tr><td class="param-name">valor</td><td class="param-type">str</td><td class="param-desc">Texto crudo del token tal como aparece en el fuente (ej. <code>"25°C"</code>)</td></tr>
+            <tr><td class="param-name">linea</td><td class="param-type">int</td><td class="param-desc">Número de línea 1-based donde fue encontrado</td></tr>
+            <tr><td class="param-name">col</td><td class="param-type">int</td><td class="param-desc">Número de columna 1-based donde comienza el token</td></tr>
+          </tbody>
+        </table>
+        <div class="ret-box"><div class="ret-label">__str__</div><div class="ret-val">[Linea  3, Col 10]  TEMPERATURA          -> '25°C'</div></div>
+        <div class="note-box"><strong>Nota:</strong> al usar <code>@dataclass</code>, Python genera automáticamente <code>__init__</code> y <code>__repr__</code>. El método <code>__str__</code> está definido manualmente para formatear la salida de consola con alineación fija.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TT class -->
+  <section class="section" id="tt-class">
+    <div class="section-header">
+      <span class="section-badge badge-lex">Lexer</span>
+      <h2>clase TT</h2>
+    </div>
+    <div class="fn-card lex">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-const">constantes</span>
+        <span class="fn-name">TT  (Token Types)</span>
+        <span class="fn-brief">Namespace de todas las constantes de tipo de token</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Clase sin instancias que actúa como enumeración de cadenas. Cada atributo de clase es una cadena igual a su nombre (ej. <code>TT.SENSOR == "SENSOR"</code>). Esto permite usar las constantes tanto como valores en comparaciones como como etiquetas legibles en mensajes de error, sin necesidad de importar el módulo <code>enum</code>.</p>
+        <div class="callout callout-info"><strong>¿Por qué no usar enum.Enum?</strong> Las cadenas simples permiten serializar tokens a JSON directamente, y el parser puede usar los valores en <code>set</code> literales sin conversión. Las constantes de cadena también son directamente legibles en la salida de consola.</div>
+        <p>Agrupa los tokens en categorías: palabras reservadas, operadores lógicos, booleanos, valores discretos, dispositivos, atributos tipados, literales con unidad, literales simples, operadores y especiales. Ver la <a href="#tokens" style="color:var(--accent2)">tabla de tokens</a> para la lista completa.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tablas de clasificación -->
+  <section class="section" id="tablas">
+    <div class="section-header">
+      <span class="section-badge badge-lex">Lexer</span>
+      <h2>Tablas de clasificación</h2>
+    </div>
+    <p>Estructuras de datos estáticas consultadas por el lexer durante la clasificación. No son funciones sino diccionarios y tuplas definidos a nivel módulo.</p>
+
+    <div class="fn-card lex">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-const">dict</span>
+        <span class="fn-name">PALABRAS_RESERVADAS</span>
+        <span class="fn-brief">Mapea nombre en minúsculas → constante TT</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Diccionario que permite clasificar en O(1) cualquier palabra que sea reservada. La clave se normaliza a minúsculas antes de la consulta, haciendo el lenguaje case-insensitive para palabras clave. Si la consulta no encuentra la clave, el identificador no es reservado y pasa a la siguiente etapa de clasificación.</p>
+        <div class="fn-sig">PALABRAS_RESERVADAS["when"]  →  "WHEN"<br>PALABRAS_RESERVADAS["frio"]  →  "FRIO"<br>PALABRAS_RESERVADAS["xyz"]   →  KeyError (no existe)</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-const">tuple</span>
+        <span class="fn-name">PREFIJOS_SENSOR  /  PREFIJOS_ACTUADOR</span>
+        <span class="fn-brief">Prefijos canónicos en orden de mayor a menor longitud</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Tuplas ordenadas de mayor a menor longitud de prefijo para garantizar que la búsqueda encuentra primero el prefijo más específico. Por ejemplo, <code>"sensor_movimiento"</code> va antes que <code>"sensor_temp"</code> para que <code>sensor_movimiento_sala</code> no sea capturado parcialmente.</p>
+        <div class="callout callout-warn"><strong>Orden importa:</strong> si <code>"sensor_temp"</code> estuviera antes que <code>"sensor_movimiento"</code>, el identificador <code>sensor_temp_exterior</code> sería capturado correctamente por ambos de todas formas (por el chequeo <code>startswith(pfx + "_")</code>), pero el orden garantiza que en caso de ambigüedad prevalezca el más específico.</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-const">dict</span>
+        <span class="fn-name">ATRIBUTOS_CONOCIDOS</span>
+        <span class="fn-brief">Mapea nombre de atributo → TT.ATTR_*</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Diccionario consultado exclusivamente cuando el token anterior fue <code>PUNTO</code>. Si el nombre del atributo se encuentra, retorna el tipo específico (<code>ATTR_BRILLO</code>, <code>ATTR_TEMP_OBJ</code>, etc.); si no, retorna <code>ATTR_GENERICO</code>. Esto permite al parser escribir reglas de producción directas sin inspeccionar el valor del token.</p>
+        <div class="fn-sig">ATRIBUTOS_CONOCIDOS["brillo"]      →  "ATTR_BRILLO"<br>ATRIBUTOS_CONOCIDOS["email_notif"]  →  "ATTR_EMAIL_NOTIF"<br>ATRIBUTOS_CONOCIDOS["xyz"]          →  (no existe) → ATTR_GENERICO</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-const">dict</span>
+        <span class="fn-name">TABLA_RANGOS</span>
+        <span class="fn-brief">Define rangos válidos por combinación (dispositivo, atributo)</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Diccionario cuya clave es la tupla <code>(prefijo_canonico, TT.ATTR_*)</code> y cuyo valor es <code>(tipo_literal_esperado, rango_tupla, descripcion)</code>. Para sensores la clave usa <code>None</code> como atributo porque el valor aparece directamente en la condición. Es consultado por <code>_validar_rango()</code> para emitir advertencias semánticas tempranas.</p>
+        <div class="fn-sig">TABLA_RANGOS[("sensor_temp",  None)]          →  (TEMPERATURA, RANGO_TEMP_1, "sensor_temp")<br>TABLA_RANGOS[("aire_", ATTR_TEMP_OBJ)]         →  (TEMPERATURA, RANGO_TEMP_2, "aire_.temp_obj")<br>TABLA_RANGOS[("foco_", ATTR_BRILLO)]           →  (PORCENTAJE,  RANGO_PERCENT, "foco_.brillo")</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Helpers numéricos -->
+  <section class="section" id="helpers">
+    <div class="section-header">
+      <span class="section-badge badge-lex">Lexer</span>
+      <h2>Helpers numéricos</h2>
+    </div>
+    <p>Funciones auxiliares privadas que extraen el valor numérico de un token literal con unidad, para poder compararlo con los límites de rango.</p>
+
+    <div class="fn-card lex">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-func">func</span>
+        <span class="fn-name">_num_temperatura(v)</span>
+        <span class="fn-brief">'25°C' → 25.0  |  '-5°C' → -5.0</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Usa una expresión regular para capturar la parte numérica (con signo opcional y decimales opcionales) de un token TEMPERATURA y retorna un <code>float</code>. Ignora el sufijo <code>°C</code>.</p>
+        <div class="fn-sig">_num_temperatura("25°C")   →  25.0<br>_num_temperatura("-5.5°C") →  -5.5</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-func">func</span>
+        <span class="fn-name">_num_porcentaje(v)  /  _num_iluminancia(v)</span>
+        <span class="fn-brief">Extraen el número de '80%' y '600lux' respectivamente</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Idénticas en estructura a <code>_num_temperatura</code>. Capturan la parte numérica descartando el sufijo de unidad.</p>
+        <div class="fn-sig">_num_porcentaje("80%")      →  80.0<br>_num_iluminancia("600lux")  →  600.0</div>
+        <div class="note-box"><strong>_EXTRACTOR:</strong> diccionario que mapea <code>TT.TEMPERATURA → _num_temperatura</code>, etc. Permite llamar al helper correcto sin un bloque <code>if/elif</code> en <code>_validar_rango()</code>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SmartHomeLexer -->
+  <section class="section" id="smarthomelexer">
+    <div class="section-header">
+      <span class="section-badge badge-lex">Lexer</span>
+      <h2>clase SmartHomeLexer</h2>
+    </div>
+    <p>Clase principal del análisis léxico. Mantiene el estado del análisis (contexto de dispositivo/atributo, último tipo visto) y expone una API pública de dos métodos.</p>
+
+    <div class="fn-card lex" id="lex-tokenizar">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">tokenizar(fuente, num_linea_base=1)</span>
+        <span class="fn-brief">Tokeniza un texto completo multilínea</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Punto de entrada principal. Divide el texto en líneas preservando los saltos de línea, llama a <code>_procesar_linea()</code> por cada una, y agrega un token <code>EOF</code> al final. Reinicia <code>errores</code>, <code>advertencias</code> y el contexto al inicio de cada llamada.</p>
+        <table class="param-table">
+          <thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">fuente</td><td class="param-type">str</td><td class="param-desc">Texto completo del archivo .smart</td></tr>
+            <tr><td class="param-name">num_linea_base</td><td class="param-type">int</td><td class="param-desc">Línea desde la que comienza la numeración (default 1)</td></tr>
+          </tbody>
+        </table>
+        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">List[Token]  — todos los tokens excepto blancos y comentarios, más EOF al final</div></div>
+        <div class="note-box"><strong>Efectos secundarios:</strong> popula <code>self.errores</code> con strings de error léxico y <code>self.advertencias</code> con strings de advertencia de rango.</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex" id="lex-tokenizar-linea">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">tokenizar_linea(linea, num_linea=1)</span>
+        <span class="fn-brief">Tokeniza una sola línea — modo interactivo</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Variante de <code>tokenizar()</code> para el modo interactivo. Procesa una única línea sin reiniciar el contexto entre llamadas, permitiendo que la secuencia <code>ACTUADOR → PUNTO → ATRIBUTO</code> se mantenga aunque llegue en distintas llamadas.</p>
+        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">List[Token]  — tokens de la línea más EOF</div></div>
+      </div>
+    </div>
+
+    <div class="fn-card lex" id="lex-reset-ctx">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_reset_ctx()</span>
+        <span class="fn-brief">Reinicia las tres variables de contexto a None</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Pone a <code>None</code> los campos <code>_ctx_prefijo</code>, <code>_ctx_attr_tipo</code> y <code>_ultimo_tipo</code>. Se llama al inicio de <code>tokenizar()</code> y cuando el usuario escribe <code>reset</code> en modo interactivo.</p>
+        <div class="fn-sig">self._ctx_prefijo   = None   # prefijo del disp. actual (ej. "foco_")<br>self._ctx_attr_tipo = None   # TT.ATTR_* del último atributo visto<br>self._ultimo_tipo   = None   # TT del último token emitido</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex" id="lex-procesar-linea">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_procesar_linea(linea, num_linea, tokens)</span>
+        <span class="fn-brief">Núcleo del análisis léxico: aplica el regex maestro caracter a caracter</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Bucle principal del lexer. En cada iteración salta blancos y aplica <code>_REGEX_MASTER.match(linea, pos)</code> para encontrar el próximo token. Identifica qué grupo del regex capturó mediante <code>m.lastgroup</code>, obtiene el tipo desde <code>_IDX_TO_TYPE</code>, y llama a los métodos auxiliares. Si ningún patrón hace match, emite un <code>DESCONOCIDO</code> y agrega un error léxico.</p>
+        <div class="fn-sig">while pos &lt; len(linea):
+    if espacio → pos++
+    m = _REGEX_MASTER.match(linea, pos)
+    if not m → error léxico, DESCONOCIDO, pos++
+    else:
+        tipo = _IDX_TO_TYPE[índice_del_grupo]
+        if COMENTARIO → break
+        if IDENTIFICADOR → _clasificar()
+        tokens.append(Token(...))
+        _actualizar_ctx(tok)
+        _validar_rango(tok)
+        pos = m.end()</div>
+        <div class="callout callout-info"><strong>_REGEX_MASTER:</strong> un único objeto <code>re.Pattern</code> compilado con todos los patrones unidos por <code>|</code> en grupos numerados <code>(?P&lt;_0&gt;…) | (?P&lt;_1&gt;…) | …</code>. Esto garantiza que el orden de los patrones en la lista <code>PATRONES</code> determine la precedencia, y que el motor de regex elija la primera alternativa que coincida.</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex" id="lex-clasificar">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_clasificar(palabra)</span>
+        <span class="fn-brief">Asigna la categoría correcta a un IDENTIFICADOR crudo</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Se llama solo cuando el regex maestro capturó un <code>IDENTIFICADOR</code>. Aplica cuatro consultas en cascada con prioridad decreciente:</p>
+        <div class="fn-sig">1. lower in PALABRAS_RESERVADAS  →  (TT.WHEN | TT.AND | TT.FRIO | …, UPPER)
+2. lower.startswith(PREFIJO_SENSOR)  →  (TT.SENSOR, lower)
+3. lower.startswith(PREFIJO_ACTUADOR)  →  (TT.ACTUADOR, lower)
+4. self._ultimo_tipo == PUNTO  →  (ATRIBUTOS_CONOCIDOS.get(lower, ATTR_GENERICO), lower)
+5. fallback  →  (TT.IDENTIFICADOR, palabra)</div>
+        <div class="note-box"><strong>Atributos y el PUNTO:</strong> el paso 4 es la clave que permite emitir <code>ATTR_BRILLO</code> en lugar de <code>IDENTIFICADOR</code>. La condición <code>_ultimo_tipo == TT.PUNTO</code> garantiza que solo se active inmediatamente después de un punto, no en cualquier otro contexto.</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex" id="lex-prefijo">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_prefijo_canonico(nombre)</span>
+        <span class="fn-brief">Extrae el prefijo canónico de un nombre completo de dispositivo</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Dado el nombre completo de un sensor o actuador (ej. <code>"aire_acondicionado"</code>), retorna el prefijo que aparece como clave en <code>TABLA_RANGOS</code> (ej. <code>"aire_"</code>). Necesario porque los nombres de actuadores pueden tener sufijos arbitrarios dados por el usuario.</p>
+        <div class="fn-sig">"sensor_temp_int"      →  "sensor_temp"<br>"foco_salon"           →  "foco_"<br>"aire_acondicionado"   →  "aire_"<br>"cerradura_principal"  →  "cerradura_"</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex" id="lex-actualizar-ctx">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_actualizar_ctx(tok)</span>
+        <span class="fn-brief">Mantiene el autómata de contexto dispositivo→atributo</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Actualiza las tres variables de contexto según el tipo del token recién emitido, implementando un autómata de estados simple:</p>
+        <div class="fn-sig">SENSOR | ACTUADOR  →  _ctx_prefijo = prefijo_canonico(tok.valor)
+                     _ctx_attr_tipo = None
+ATTR_*             →  _ctx_attr_tipo = tok.tipo
+ATTR_GENERICO      →  _ctx_attr_tipo = None  (sin rango definido)
+WHEN|IF|DO|END|…   →  reset completo del contexto
+(cualquier otro)   →  solo actualiza _ultimo_tipo</div>
+        <div class="note-box"><strong>¿Por qué resetear con palabras reservadas de bloque?</strong> Al iniciar un nuevo WHEN, IF, etc., el contexto de dispositivo del bloque anterior ya no es relevante. Si no se resetea, el valor numérico del bloque siguiente podría ser validado contra el rango del dispositivo del bloque anterior.</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex" id="lex-validar-rango">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_validar_rango(tok)</span>
+        <span class="fn-brief">Emite advertencias semánticas tempranas por valores fuera de rango</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Consulta <code>TABLA_RANGOS</code> con la clave <code>(prefijo_actual, attr_tipo_actual)</code>. Si existe una entrada, verifica que el tipo del literal coincide y que el valor numérico (extraído con <code>_EXTRACTOR</code>) está dentro del rango. Si no, agrega una advertencia a <code>self.advertencias</code>. Solo procesa tokens de tipo <code>TEMPERATURA</code>, <code>PORCENTAJE</code> e <code>ILUMINANCIA</code>.</p>
+        <div class="callout callout-warn"><strong>Nota teórica:</strong> la validación de rangos pertenece al análisis semántico, no léxico. Se incluye aquí como <em>early semantic check</em>, práctica habitual en compiladores reales cuando el contexto necesario ya está disponible en la fase léxica. Las advertencias no impiden que el token sea emitido ni que el análisis continúe.</div>
+      </div>
+    </div>
+
+    <div class="fn-card lex" id="lex-modos">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-func">func</span>
+        <span class="fn-name">modo_interactivo()  /  modo_archivo(ruta)</span>
+        <span class="fn-brief">Puntos de entrada de la interfaz de usuario del lexer</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc"><strong>modo_interactivo()</strong>: bucle que lee líneas desde <code>stdin</code>, llama a <code>tokenizar_linea()</code> y muestra los tokens. Soporta el comando <code>reset</code> para limpiar el contexto. Se mantiene el estado entre líneas para que instrucciones multilínea se tokenicen correctamente.</p>
+        <p class="fn-desc"><strong>modo_archivo(ruta)</strong>: valida existencia y extensión <code>.smart</code>, lee el archivo completo, llama a <code>tokenizar()</code>, imprime todos los tokens y el resumen de errores/advertencias. Sale con código 2 si hay errores léxicos.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ PARSER ══════════ -->
+
+  <!-- Nodos AST -->
+  <section class="section" id="nodos">
+    <div class="section-header">
+      <span class="section-badge badge-par">Parser</span>
+      <h2>Nodos del AST</h2>
+    </div>
+    <p>Dataclasses que forman el Árbol de Sintaxis Abstracta. Cada nodo representa una construcción gramatical del lenguaje.</p>
+    <table class="data-table">
+      <thead><tr><th>Nodo</th><th>Representa</th><th>Campos principales</th></tr></thead>
+      <tbody>
+        <tr><td class="tt">NodoPrograma</td><td>Raíz del árbol. Lista de instrucciones de nivel superior</td><td class="ex">instrucciones: List</td></tr>
+        <tr><td class="tt">NodoBloqueWhen</td><td>WHEN condicion DO cuerpo END</td><td class="ex">condicion, cuerpo, linea</td></tr>
+        <tr><td class="tt">NodoBloqueEvery</td><td>EVERY tiempo DO cuerpo END</td><td class="ex">tiempo_valor, cuerpo, linea</td></tr>
+        <tr><td class="tt">NodoCondicional</td><td>IF condicion THEN … [ELSE …] END</td><td class="ex">condicion, then_cuerpo, else_cuerpo, linea</td></tr>
+        <tr><td class="tt">NodoCondicion</td><td>Comparación simple o booleano en una condición</td><td class="ex">izq_tipo, izq_valor, izq_attr, op, der_tipo, der_valor, negada</td></tr>
+        <tr><td class="tt">NodoCondicionCompuesta</td><td>Dos condiciones unidas por AND u OR</td><td class="ex">izquierda, operador, derecha</td></tr>
+        <tr><td class="tt">NodoAsignacion</td><td>actuador.atributo = valor</td><td class="ex">actuador, attr_tipo, attr_nombre, valor_tipo, valor, linea</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ErrorSintactico -->
+  <section class="section" id="error-sint">
+    <div class="section-header">
+      <span class="section-badge badge-par">Parser</span>
+      <h2>ErrorSintactico</h2>
+    </div>
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-class">exception</span>
+        <span class="fn-name">ErrorSintactico(Exception)</span>
+        <span class="fn-brief">Excepción lanzada cuando la gramática no se cumple</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Excepción personalizada que transporta el mensaje de error y el token que lo provocó. Al convertirse a cadena incluye línea, columna, el mensaje y el token ofensivo. Es capturada en <code>parsear()</code> y <code>_cuerpo()</code> para implementar la recuperación de pánico.</p>
+        <div class="fn-sig">str(error)  →  "Error sintactico | Linea  5, Col 12 | Se esperaba DO pero se encontro THEN (token: 'THEN' [THEN])"</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Parser class -->
+  <section class="section" id="parser-class">
+    <div class="section-header">
+      <span class="section-badge badge-par">Parser</span>
+      <h2>clase Parser</h2>
+    </div>
+    <p>Parser LL(1) descendente recursivo. Cada método corresponde a una regla de producción de la gramática.</p>
+
+    <div class="fn-card par" id="par-actual">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_actual()  /  _es(*tipos)</span>
+        <span class="fn-brief">Inspecciona el token actual sin consumirlo (lookahead)</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc"><code>_actual()</code> retorna el token en la posición actual sin avanzar el cursor. <code>_es(*tipos)</code> es un helper booleano que retorna <code>True</code> si el token actual es de alguno de los tipos dados. Juntos implementan el lookahead de 1 símbolo que necesita un parser LL(1).</p>
+        <div class="fn-sig">if self._es(TT.WHEN):         # ¿el próximo token es WHEN?
+    return self._bloque_when()  # entonces parsear bloque WHEN</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-consumir">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_consumir(*tipos)</span>
+        <span class="fn-brief">Verifica el tipo del token actual, lo retorna y avanza el cursor</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Operación fundamental del parser. Si el token actual es de uno de los tipos esperados, avanza el cursor y retorna el token. Si no, lanza <code>ErrorSintactico</code> con un mensaje que indica qué se esperaba y qué se encontró.</p>
+        <div class="fn-sig">tok_when = self._consumir(TT.WHEN)    # consume WHEN o lanza error
+tok_tiempo = self._consumir(TT.TIEMPO)  # consume 30m, 1h, etc.</div>
+        <div class="note-box"><strong>Diferencia con _avanzar():</strong> <code>_consumir()</code> valida el tipo antes de avanzar; <code>_avanzar()</code> avanza incondicionalmente. Se usa <code>_avanzar()</code> en los lugares donde ya se sabe el tipo (ej. dentro de un bloque <code>if self._es(TT.ELSE)</code>).</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-avanzar">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_avanzar()</span>
+        <span class="fn-brief">Avanza el cursor y retorna el token actual sin validar tipo</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Usado cuando el tipo ya fue verificado por <code>_es()</code> en la línea anterior, por lo que repetir la validación sería redundante. También utilizado para consumir operadores AND/OR/NOT dentro de <code>_condicion()</code> y <code>_expr_cond()</code>.</p>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-sincronizar">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_sincronizar(*tokens_de_seguimiento)</span>
+        <span class="fn-brief">Recuperación de pánico: descarta tokens hasta un punto seguro</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Estrategia de recuperación de errores. Ante un <code>ErrorSintactico</code>, en lugar de abortar el análisis se descartan tokens hasta encontrar uno del conjunto de seguimiento (puntos donde el parseo puede retomarse con seguridad). Esto permite reportar múltiples errores en una sola pasada.</p>
+        <div class="fn-sig"># En parsear(): sincronizar a inicio de nueva instrucción
+self._sincronizar(TT.WHEN, TT.EVERY, TT.IF, TT.END, TT.EOF)
+
+# En _cuerpo(): sincronizar a siguiente acción o cierre de bloque
+self._sincronizar(TT.ACTUADOR, TT.IF, TT.END, TT.ELSE, TT.EOF)</div>
+        <div class="callout callout-warn"><strong>Técnica:</strong> conocida como <em>panic mode recovery</em>. Es la estrategia más simple de recuperación de errores y funciona bien para este lenguaje porque los bloques WHEN/EVERY/IF tienen delimitadores claros (END).</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-parsear">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">parsear()</span>
+        <span class="fn-brief">Punto de entrada del parser — produce el NodoPrograma raíz</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Corresponde a la regla <code>programa ::= instruccion+ EOF</code>. Itera llamando a <code>_instruccion()</code> hasta EOF. Captura los <code>ErrorSintactico</code> para aplicar recuperación de pánico y continuar el análisis.</p>
+        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">NodoPrograma — raíz del árbol de sintaxis abstracta</div></div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-instruccion">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_instruccion()</span>
+        <span class="fn-brief">Despacha al método correcto según el primer token (lookahead)</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Regla: <code>instruccion ::= bloque_when | bloque_every | condicional | asignacion</code>. Usa el primer token para decidir qué regla aplicar. Si el token no es ninguno de los esperados, lanza <code>ErrorSintactico</code>.</p>
+        <div class="fn-sig">WHEN     →  _bloque_when()
+EVERY    →  _bloque_every()
+IF       →  _condicional()
+ACTUADOR →  _asignacion()
+otro     →  ErrorSintactico</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-when">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_bloque_when()</span>
+        <span class="fn-brief">WHEN condicion DO cuerpo END</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Consume el token WHEN, parsea la condición, consume DO, parsea el cuerpo (lista de acciones), consume END. Retorna un <code>NodoBloqueWhen</code> con la condición y el cuerpo.</p>
+        <div class="fn-sig">WHEN  condicion  DO  accion+  END  →  NodoBloqueWhen</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-every">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_bloque_every()</span>
+        <span class="fn-brief">EVERY TIEMPO DO cuerpo END</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Igual que <code>_bloque_when()</code> pero la "condición" es simplemente un token TIEMPO (ej. <code>30m</code>). El valor del tiempo se guarda directamente en el nodo.</p>
+        <div class="fn-sig">EVERY  30m  DO  accion+  END  →  NodoBloqueEvery(tiempo_valor="30m")</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-cuerpo">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_cuerpo()</span>
+        <span class="fn-brief">Parsea una lista de acciones hasta END, ELSE o EOF</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Regla: <code>cuerpo ::= accion+</code>. Itera llamando a <code>_accion()</code> mientras el token actual no sea <code>END</code>, <code>ELSE</code> ni <code>EOF</code>. Implementa recuperación local de errores para poder continuar con la siguiente acción si una falla.</p>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-accion">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_accion()</span>
+        <span class="fn-brief">Una acción es una asignación o un IF anidado</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Regla: <code>accion ::= asignacion | condicional</code>. El token actual determina cuál: <code>ACTUADOR → _asignacion()</code>, <code>IF → _condicional()</code>. Permite anidar IFs dentro de WHEN y EVERY.</p>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-condicional">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_condicional()</span>
+        <span class="fn-brief">IF condicion THEN cuerpo [ELSE cuerpo] END</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Parsea el bloque IF completo. El ELSE es opcional: si el token después del cuerpo THEN es <code>ELSE</code>, se parsea el cuerpo alternativo; si no, <code>else_cuerpo</code> queda como lista vacía. Retorna un <code>NodoCondicional</code>.</p>
+        <div class="fn-sig">IF  condicion  THEN  accion+  [ELSE  accion+]  END  →  NodoCondicional</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-condicion">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_condicion()</span>
+        <span class="fn-brief">Encadena expresiones simples con AND / OR</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Regla: <code>condicion ::= expr_cond ((AND|OR) expr_cond)*</code>. Parsea la primera expresión simple y luego, mientras el token sea AND u OR, parsea otra expresión y crea un <code>NodoCondicionCompuesta</code>. Asocia a la izquierda de forma natural.</p>
+        <div class="fn-sig">sensor_temp > 26°C AND alarma.estado == OFF
+  →  NodoCondicionCompuesta(
+       izquierda = NodoCondicion(sensor_temp > 26°C),
+       operador  = "AND",
+       derecha   = NodoCondicion(alarma.estado == OFF)
+     )</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-exprcond">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_expr_cond()</span>
+        <span class="fn-brief">Expresión de condición simple: sensor/actuador op valor, o booleano puro</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Parsea cuatro formas posibles de expresión condicional simple:</p>
+        <div class="fn-sig">1.  NOT expr_cond                             →  NodoCondicion(negada=True)
+2.  TRUE | FALSE | ON | OFF                  →  NodoCondicion(op=None)
+3.  SENSOR  op_cmp  valor_literal            →  NodoCondicion(izq=SENSOR)
+4.  ACTUADOR PUNTO ATTR op_cmp valor_literal →  NodoCondicion(izq=ACTUADOR, izq_attr=...)</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-asignacion">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_asignacion()</span>
+        <span class="fn-brief">ACTUADOR PUNTO ATTR = valor</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Regla: <code>asignacion ::= ACTUADOR PUNTO ATTR_* OP_ASIG valor_asig</code>. Consume los cinco tokens en orden y construye un <code>NodoAsignacion</code>. El atributo debe ser un <code>TT.ATTR_*</code> (emitido por el lexer); si no lo es, <code>_consumir()</code> lanza error.</p>
+        <div class="fn-sig">foco_sala.brillo = 80%
+  →  NodoAsignacion(actuador="foco_sala", attr_tipo=ATTR_BRILLO,
+                    attr_nombre="brillo", valor_tipo=PORCENTAJE, valor="80%")</div>
+      </div>
+    </div>
+
+    <div class="fn-card par" id="par-valores">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_valor_asig()  /  _valor_literal()</span>
+        <span class="fn-brief">Consumen el token del lado derecho de = o de una comparación</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc"><strong>_valor_asig()</strong>: acepta cualquier token de <code>TIPOS_VALOR</code> más <code>CADENA</code> y <code>EMAIL</code>. Usado en el lado derecho de asignaciones donde puede haber texto o email.</p>
+        <p class="fn-desc"><strong>_valor_literal()</strong>: igual pero <strong>sin</strong> <code>CADENA</code> ni <code>EMAIL</code>. Usado en condiciones donde esos tipos no tienen sentido comparar con operadores <code>&gt;, &lt;, ==</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recolector -->
+  <section class="section" id="recolector">
+    <div class="section-header">
+      <span class="section-badge badge-par">Parser</span>
+      <h2>clase Recolector</h2>
+    </div>
+    <p>Segundo pasaje sobre el AST. Transforma la estructura jerárquica del árbol en listas planas de <code>InfoSeccion</code> listas para ser renderizadas por el emisor HTML.</p>
+
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">recolectar(programa)</span>
+        <span class="fn-brief">Punto de entrada — itera las instrucciones raíz</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Para cada instrucción del <code>NodoPrograma</code> llama a <code>_procesar_instruccion()</code> y acumula las <code>InfoSeccion</code> resultantes en una lista.</p>
+        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">List[InfoSeccion]</div></div>
+      </div>
+    </div>
+
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_seccion_when / _seccion_every / _seccion_if(nodo)</span>
+        <span class="fn-brief">Crean un InfoSeccion para cada tipo de bloque</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Cada método crea un <code>InfoSeccion</code> con el tipo correspondiente (<code>"WHEN"</code>, <code>"EVERY"</code>, <code>"IF"</code>), genera el texto del disparador llamando a <code>_condicion_a_texto()</code>, extrae los sensores de la condición, procesa el cuerpo de acciones, y para IFs con ELSE crea una subsección adicional.</p>
+      </div>
+    </div>
+
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_volcar_asignacion(nodo, sec)  /  _obtener_actuador(sec, nombre)</span>
+        <span class="fn-brief">Agrupan atributos de un mismo actuador sin duplicar entradas</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc"><code>_obtener_actuador()</code> busca en <code>sec.actuadores</code> si ya existe un <code>InfoActuador</code> con ese nombre; si no, lo crea y lo agrega. <code>_volcar_asignacion()</code> usa ese método y agrega la tupla <code>(attr_nombre, valor_tipo, valor_raw)</code> a la lista de atributos del actuador. Esto garantiza que todas las asignaciones de <code>foco_sala</code> queden en un único bloque HTML.</p>
+      </div>
+    </div>
+
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_extraer_sensores_condicion(cond, sec)</span>
+        <span class="fn-brief">Recorre recursivamente la condición y extrae sensores únicos</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Función recursiva que desciende por <code>NodoCondicionCompuesta</code> hasta llegar a <code>NodoCondicion</code>. Si el lado izquierdo es un SENSOR, lo agrega a <code>sec.sensores</code> (verificando que no esté duplicado). Esto permite renderizar el bloque verde del sensor junto al bloque del evento que lo dispara.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HtmlEmitter -->
+  <section class="section" id="htmlemitter">
+    <div class="section-header">
+      <span class="section-badge badge-par">Parser</span>
+      <h2>clase HtmlEmitter</h2>
+    </div>
+    <p>Tercer y último pasaje. Recorre las <code>InfoSeccion</code> y genera el documento HTML según las reglas de la sección 5 de la consigna.</p>
+
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">emitir(secciones, titulo)</span>
+        <span class="fn-brief">Genera el documento HTML completo con cabecera, estilos y cuerpo</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Construye la estructura HTML completa: <code>&lt;!DOCTYPE&gt;</code>, <code>&lt;head&gt;</code> con estilos CSS, y <code>&lt;body&gt;</code> con un <code>&lt;h1&gt;</code> de título. Luego itera las secciones llamando a <code>_renderizar_seccion()</code>. Retorna el HTML como string.</p>
+        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">str — documento HTML completo listo para guardar en disco</div></div>
+      </div>
+    </div>
+
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_renderizar_seccion(sec, nivel)</span>
+        <span class="fn-brief">Genera el &lt;div&gt; de sección con título, sensores, actuadores y subsecciones</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Para secciones de tipo <code>"ASIG"</code> (asignaciones sueltas) omite el envoltorio. Para el resto crea un <code>&lt;div class="seccion"&gt;</code>, agrega el título disparador como <code>&lt;h2&gt;</code> o <code>&lt;h3&gt;</code> según el nivel de anidamiento, renderiza sensores, actuadores y subsecciones recursivamente.</p>
+      </div>
+    </div>
+
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_renderizar_sensor(info, indent)</span>
+        <span class="fn-brief">→ &lt;div style="border:1px solid green; padding:20px"&gt;&lt;h2&gt;…&lt;/h2&gt;&lt;/div&gt;</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Genera el bloque visual del sensor según la consigna. Traduce el nombre técnico (<code>sensor_temp</code>) a un label legible (<code>Temperatura</code>) usando <code>_LABEL_SENSOR</code>, agrega la unidad desde <code>_UNIDAD_SENSOR</code>, y formatea el operador y el valor de la condición.</p>
+        <div class="fn-sig">&lt;div class="sensor" style="border:1px solid green; padding:20px; margin:10px 0;"&gt;
+  &lt;h2&gt;Temperatura  &gt; 26°C&lt;/h2&gt;
+&lt;/div&gt;</div>
+      </div>
+    </div>
+
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_renderizar_actuador(info, indent)</span>
+        <span class="fn-brief">→ &lt;div gray&gt;&lt;h1&gt;nombre&lt;/h1&gt;&lt;ul&gt;&lt;li&gt;…&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Genera el bloque visual del actuador. El nombre va en <code>&lt;h1&gt;</code>, y cada atributo se convierte en un <code>&lt;li&gt;</code> dentro de <code>&lt;ul&gt;</code>. Itera la lista de atributos del <code>InfoActuador</code> llamando a <code>_renderizar_item()</code> para cada uno.</p>
+      </div>
+    </div>
+
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-method">método</span>
+        <span class="fn-name">_renderizar_item(label, valor_tipo, valor_raw, indent)</span>
+        <span class="fn-brief">Genera &lt;li&gt; normal o &lt;li&gt;&lt;a href="mailto:…"&gt; para emails</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Maneja los tres casos posibles del valor de un atributo. Para <code>EMAIL</code> extrae el nombre de usuario con <code>split("@")[0]</code> y genera un link <code>mailto:</code>. Para <code>CADENA</code> elimina las comillas del token. Para cualquier otro tipo usa el valor crudo directamente.</p>
+        <div class="fn-sig">EMAIL   →  &lt;li&gt;Email de notificacion: &lt;a href="mailto:user@dom.com"&gt;Contactar a user&lt;/a&gt;&lt;/li&gt;
+CADENA  →  &lt;li&gt;Mensaje: texto sin comillas&lt;/li&gt;
+otros   →  &lt;li&gt;Estado: ON&lt;/li&gt;</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- compilar() -->
+  <section class="section" id="compilar">
+    <div class="section-header">
+      <span class="section-badge badge-par">Parser</span>
+      <h2>función compilar()</h2>
+    </div>
+    <div class="fn-card par">
+      <div class="fn-header" onclick="toggle(this)">
+        <span class="fn-kind kind-func">func</span>
+        <span class="fn-name">compilar(fuente, nombre_archivo)</span>
+        <span class="fn-brief">Orquesta las 4 fases del pipeline completo</span>
+        <span class="fn-toggle">›</span>
+      </div>
+      <div class="fn-body">
+        <p class="fn-desc">Función de alto nivel que encadena las cuatro fases: instancia el <code>SmartHomeLexer</code>, luego el <code>Parser</code>, luego el <code>Recolector</code>, luego el <code>HtmlEmitter</code>, y retorna el resultado junto con los errores y advertencias de cada fase.</p>
+        <div class="fn-sig">fuente → Lexer → tokens → Parser → AST → Recolector → secciones → HtmlEmitter → HTML</div>
+        <table class="param-table">
+          <thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">fuente</td><td class="param-type">str</td><td class="param-desc">Texto completo del archivo .smart</td></tr>
+            <tr><td class="param-name">nombre_archivo</td><td class="param-type">str</td><td class="param-desc">Nombre base para el título del HTML generado</td></tr>
+          </tbody>
+        </table>
+        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">(html_str, errores_lexicos, advertencias_lexico, errores_sintacticos)</div></div>
+        <div class="note-box"><strong>Diseño:</strong> separar la compilación de la E/S permite usar <code>compilar()</code> tanto desde <code>modo_archivo()</code> como desde <code>modo_interactivo()</code> y desde tests automáticos sin duplicar lógica.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  function toggle(header) {
+    const card = header.closest('.fn-card');
+    card.classList.toggle('open');
+  }
+  // Resaltar item de nav al hacer scroll
+  const sections = document.querySelectorAll('.section');
+  const navItems = document.querySelectorAll('.nav-item');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navItems.forEach(n => n.classList.remove('active'));
+        const link = document.querySelector(`.nav-item[href="#${e.target.id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

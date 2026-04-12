@@ -81,6 +81,7 @@ fase lexica.
 
 import re
 import sys
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -633,18 +634,95 @@ def modo_archivo(ruta: str) -> None:
 
 
 # ======================================================================
-#  10. PUNTO DE ENTRADA
+#  10. SELECTOR DE ARCHIVO (GUI — tkinter)
+# ======================================================================
+
+def seleccionar_archivo_gui() -> Optional[str]:
+    """
+    Abre un cuadro de diálogo nativo del sistema operativo para que
+    el usuario seleccione un archivo .smart.
+
+    Pasos:
+      1. Importa tkinter y crea una ventana raíz oculta.
+         (La ventana raíz es necesaria para que filedialog funcione,
+          pero no la queremos visible — por eso se llama withdraw().)
+      2. Lleva la ventana oculta al frente del escritorio con
+         lift() + focus_force() para que el diálogo aparezca encima
+         de otras ventanas y no quede detrás.
+      3. Muestra el diálogo askopenfilename() filtrado a *.smart
+         y al directorio de trabajo actual como punto de partida.
+      4. Destruye la ventana raíz para liberar recursos de Tk.
+      5. Retorna la ruta seleccionada, o None si el usuario canceló.
+
+    Retorna:
+        str  — ruta absoluta al archivo seleccionado
+        None — si el usuario cerró el diálogo sin seleccionar nada
+    """
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except ImportError:
+        print("Error: tkinter no está disponible en este entorno.")
+        print("       Instale python3-tk o use:  python lexer.py archivo.smart")
+        return None
+
+    # Crear ventana raíz invisible (obligatoria para filedialog)
+    root = tk.Tk()
+    root.withdraw()       # ocultarla — no queremos una ventana vacía
+    root.lift()           # traerla al frente del stack de ventanas
+    root.focus_force()    # darle el foco para que el diálogo no quede atrás
+
+    ruta = filedialog.askopenfilename(
+        title      = "Seleccionar archivo SMART-HOME",
+        initialdir = os.getcwd(),
+        filetypes  = [
+            ("Archivos SMART-HOME", "*.smart"),
+            ("Todos los archivos",  "*.*"),
+        ],
+    )
+
+    root.destroy()   # liberar la ventana raíz de Tk
+
+    # askopenfilename retorna "" si el usuario cancela
+    return ruta if ruta else None
+
+
+# ======================================================================
+#  11. PUNTO DE ENTRADA
 # ======================================================================
 
 def main():
+    """
+    Lógica de inicio del programa.
+
+    Casos posibles:
+      • Sin argumentos       → abre el diálogo gráfico para elegir archivo.
+                               Si el usuario cancela, cae al modo interactivo.
+      • Un argumento (ruta)  → usa esa ruta directamente.
+      • '--interactivo'      → fuerza el modo de consola sin GUI.
+      • Más de un argumento  → muestra uso y termina.
+    """
     if len(sys.argv) == 1:
-        modo_interactivo()
+        print("Abriendo selector de archivo...")
+        ruta = seleccionar_archivo_gui()
+
+        if ruta:
+            modo_archivo(ruta)
+        else:
+            print("No se seleccionó archivo. Iniciando modo interactivo.\n")
+            modo_interactivo()
+
     elif len(sys.argv) == 2:
-        modo_archivo(sys.argv[1])
+        if sys.argv[1] == "--interactivo":
+            modo_interactivo()
+        else:
+            modo_archivo(sys.argv[1])
+
     else:
         print("Uso:")
-        print("  python lexer.py                # modo interactivo")
-        print("  python lexer.py archivo.smart  # desde archivo")
+        print("  python lexer.py                    # selector gráfico de archivo")
+        print("  python lexer.py archivo.smart      # ruta directa")
+        print("  python lexer.py --interactivo      # modo consola sin GUI")
         sys.exit(1)
 
 if __name__ == "__main__":

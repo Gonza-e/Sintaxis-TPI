@@ -32,11 +32,11 @@ END
 
 // -- Bloque 3: persiana y cerradura  (RANGO_PERCENT en posicion) --
 EVERY 30m DO
-    IF reloj_principal.hora > 22:00 AND alarma_casa.estado == OFF THEN
+    if reloj_principal.hora > 22:00 AND alarma_casa.estado == OFF THEN
         persiana_sala.posicion     = 0%
         persiana_comedor.posicion  = 120%
         cerradura_principal.estado = ON
-    END
+    end
 END
 
 // -- Bloque 4: altavoz y email  (RANGO_PERCENT en volumen) --
