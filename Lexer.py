@@ -1,35 +1,21 @@
 """
-╔══════════════════════════════════════════════════════════════════╗
-║   SMART-HOME Lexer  v2.0  —  Sintaxis y Semántica de Lenguajes  ║
-║   UTN Facultad Regional Resistencia  |  Ciclo 2026              ║
-╚══════════════════════════════════════════════════════════════════╝
-
-Implementación manual usando ÚNICAMENTE el módulo `re` de la
-biblioteca estándar de Python.
-No se usa PLY, ANTLR, JFlex, ni ninguna otra herramienta de
-análisis léxico automático.
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TOKENS RECONOCIDOS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Palabras reservadas  : WHEN  IF  THEN  ELSE  DO  END  EVERY
-Operadores lógicos   : AND  OR  NOT
-Booleanos sensor     : TRUE  FALSE
-Booleanos actuador   : ON  OFF
-Modos discretos      : FRIO  CALOR  VENT
-Colores              : BLANCO  ROJO  AZUL
+Palabras reservadas: WHEN | IF | THEN | ELSE | DO | END | EVERY
+Operadores lógicos: AND | OR | NOT
+Booleanos sensor: TRUE | FALSE
+Booleanos actuador: ON | OFF
+Modos discretos: FRIO | CALOR | VENT
+Colores: BLANCO | ROJO | AZUL
 
-Sensores             : SENSOR  (sensor_temp*, sensor_humedad,
-                                sensor_luz, sensor_movimiento,
-                                sensor_humo)
+Sensores: SENSOR  (sensor_temp*, sensor_humedad, sensor_luz, sensor_movimiento, sensor_humo)
 
-Actuadores           : ACTUADOR  (foco_*, aire_*, persiana_*,
-                                  cerradura_*, reloj_*,
-                                  altavoz_*, alarma_*)
+Actuadores: ACTUADOR  (foco_*, aire_*, persiana_*, cerradura_*, reloj_*, altavoz_*, alarma_*)
 
 Atributos tipados    : ATTR_ESTADO      .estado
 (emitidos al ver      ATTR_BRILLO       .brillo
-PUNTO+nombre)         ATTR_COLOR        .color
+PUNTO+nNombre)         ATTR_COLOR        .color
                       ATTR_MODO         .modo
                       ATTR_TEMP_OBJ     .temp_obj
                       ATTR_TEMP_ACT     .temp_act
@@ -54,19 +40,17 @@ Literales simples    : HORA   06:00  (HH:MM 24h)
                        CADENA "texto"
                        ENTERO  FLOTANTE
 
-Operadores           : OP_EQ  OP_NEQ  OP_GTE  OP_LTE
-                       OP_GT  OP_LT  OP_ASIG
+Operadores           : OP_EQ | OP_NEQ | OP_GTE | OP_LTE | OP_GT | OP_LT | OP_ASIG
 Puntuacion           : PUNTO
 Especiales           : COMENTARIO(descartado)  DESCONOCIDO  EOF
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RANGOS NOMBRADOS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RANGO_TEMP_1  -10.0 a 50.0 C  (sensor_temp, aire_.temp_act)
-RANGO_TEMP_2   16.0 a 30.0 C  (aire_.temp_obj)
-RANGO_PERCENT   0.0 a 100.0 % (sensor_humedad, foco_.brillo,
-                                persiana_.posicion, altavoz_.volumen)
-RANGO_LUX       0.0 a 1000.0  (sensor_luz)
+RANGO_TEMP_1:  -10.0 a 50.0 C  (sensor_temp, aire_.temp_act)
+RANGO_TEMP_2:  16.0 a 30.0 C  (aire_.temp_obj)
+RANGO_PERCENT:   0.0 a 100.0 % (sensor_humedad, foco_.brillo, persiana_.posicion, altavoz_.volumen)
+RANGO_LUX:       0.0 a 1000.0  (sensor_luz)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 VALIDACION DE RANGOS  (advertencia semantica temprana)
@@ -221,8 +205,7 @@ PALABRAS_RESERVADAS: dict = {
     "azul":   TT.AZUL,
 }
 
-# 4b. Prefijos de sensores (orden: mas largo primero para evitar
-#     que "sensor_temp" capture "sensor_temp_int" antes de tiempo)
+# 4b. Prefijos de sensores (orden: mas largo primero para evitar que "sensor_temp" capture "sensor_temp_int" antes de tiempo)
 PREFIJOS_SENSOR = (
     "sensor_movimiento",
     "sensor_humedad",
@@ -247,26 +230,26 @@ PREFIJOS_ACTUADOR = (
 #     El lexer consulta esta tabla cuando ve  PUNTO + IDENTIFICADOR.
 ATRIBUTOS_CONOCIDOS: dict = {
     # ── foco_ ───────────────────────────────
-    "estado":      TT.ATTR_ESTADO,     # BOOL  ON/OFF
-    "brillo":      TT.ATTR_BRILLO,     # PERCENT 0-100%
-    "color":       TT.ATTR_COLOR,      # NOMBRE blanco/rojo/azul
+    "estado":      TT.ATTR_ESTADO,     # Booleano ON/OFF
+    "brillo":      TT.ATTR_BRILLO,     # Porcentaje 0-100%
+    "color":       TT.ATTR_COLOR,      # Nombre blanco/rojo/azul
     # ── aire_ ───────────────────────────────
-    "modo":        TT.ATTR_MODO,       # DISCRETO FRIO/CALOR/VENT
-    "temp_obj":    TT.ATTR_TEMP_OBJ,   # TEMP 16-30 C  (RANGO_TEMP_2)
-    "temp_act":    TT.ATTR_TEMP_ACT,   # TEMP -10-50 C (RANGO_TEMP_1, solo lectura)
+    "modo":        TT.ATTR_MODO,       # Discreto FRIO/CALOR/VENT
+    "temp_obj":    TT.ATTR_TEMP_OBJ,   # Temperatura 16-30 C  (RANGO_TEMP_2)
+    "temp_act":    TT.ATTR_TEMP_ACT,   # Temperatura -10-50 C (RANGO_TEMP_1, solo lectura)
     # ── persiana_ ───────────────────────────
-    "posicion":    TT.ATTR_POSICION,   # PERCENT 0-100%
-    "posicion":    TT.ATTR_POSICION,   # alias sin tilde
+    "posicion":    TT.ATTR_POSICION,   # Porcentaje 0-100%
+    "posicion":    TT.ATTR_POSICION,   # Alias sin tilde
     # ── reloj_ ──────────────────────────────
-    "hora":        TT.ATTR_HORA,       # TIME 00:00-23:59 (solo lectura)
-    "fecha":       TT.ATTR_FECHA,      # DATE DD/MM/AAAA (solo lectura)
+    "hora":        TT.ATTR_HORA,       # Tiempo 00:00-23:59 (solo lectura)
+    "fecha":       TT.ATTR_FECHA,      # Fecha DD/MM/AAAA (solo lectura)
     # ── altavoz_ ────────────────────────────
-    "volumen":     TT.ATTR_VOLUMEN,    # PERCENT 0-100%
-    "mute":        TT.ATTR_MUTE,       # BOOL ON/OFF
-    "mensaje":     TT.ATTR_MENSAJE,    # texto (cadena)
-    "email_notif": TT.ATTR_EMAIL_NOTIF,# email
+    "volumen":     TT.ATTR_VOLUMEN,    # Porcentaje 0-100%
+    "mute":        TT.ATTR_MUTE,       # Booleano ON/OFF
+    "mensaje":     TT.ATTR_MENSAJE,    # Texto (cadena)
+    "email_notif": TT.ATTR_EMAIL_NOTIF,# Email
     # ── alarma_ / cerradura_ ────────────────
-    "activada":    TT.ATTR_ACTIVADA,   # BOOL ON/OFF
+    "activada":    TT.ATTR_ACTIVADA,   # Booleano ON/OFF
     # "estado" ya esta arriba y aplica a cerradura_, alarma_, etc.
 }
 
