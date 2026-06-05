@@ -3,1097 +3,925 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Documentación — SMART-HOME Lexer & Parser (una pasada)</title>
+  <title>Documentación — SMART-HOME Lexer v3 & Parser (una pasada)</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:        #0e0f14;
-      --bg2:       #15161e;
-      --bg3:       #1c1d28;
-      --border:    #2a2b3d;
-      --accent1:   #7c6af7;
-      --accent2:   #3ecfb2;
-      --accent3:   #f7a24b;
-      --accent4:   #e05c7a;
-      --txt:       #dde1f0;
-      --txt2:      #8890b0;
-      --txt3:      #555e80;
-      --code-bg:   #111320;
-      --lex-clr:   #3ecfb2;
-      --par-clr:   #7c6af7;
-      --font-head: 'Syne', sans-serif;
-      --font-code: 'JetBrains Mono', monospace;
-      --radius:    8px;
+      --bg:#0e0f14; --bg2:#15161e; --bg3:#1c1d28; --border:#2a2b3d;
+      --a1:#7c6af7; --a2:#3ecfb2; --a3:#f7a24b; --a4:#e05c7a;
+      --txt:#dde1f0; --txt2:#8890b0; --txt3:#555e80; --code:#111320;
+      --lc:#3ecfb2; --pc:#7c6af7;
+      --fh:'Syne',sans-serif; --fc:'JetBrains Mono',monospace; --r:8px;
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--bg);
-      color: var(--txt);
-      font-family: var(--font-head);
-      font-size: 15px;
-      line-height: 1.7;
-      display: flex;
-      min-height: 100vh;
-    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--txt);font-family:var(--fh);font-size:15px;line-height:1.7;display:flex;min-height:100vh}
 
-    /* ── Sidebar ── */
-    #sidebar {
-      width: 268px;
-      min-width: 268px;
-      background: var(--bg2);
-      border-right: 1px solid var(--border);
-      padding: 28px 0;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-      flex-shrink: 0;
-    }
-    #sidebar .logo { padding: 0 24px 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-    #sidebar .logo h1 { font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--accent1); }
-    #sidebar .logo p  { font-size: 11px; color: var(--txt3); margin-top: 4px; font-family: var(--font-code); }
-    .nav-group { margin-bottom: 8px; }
-    .nav-label { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--txt3); padding: 8px 24px 4px; }
-    .nav-label.lex { color: var(--lex-clr); }
-    .nav-label.par { color: var(--par-clr); }
-    .nav-item {
-      display: block; padding: 6px 24px 6px 32px; font-size: 13px;
-      color: var(--txt2); text-decoration: none;
-      border-left: 2px solid transparent; transition: all .15s;
-      font-family: var(--font-code);
-    }
-    .nav-item:hover { color: var(--txt); background: var(--bg3); border-left-color: var(--accent1); }
-    .nav-item.lex:hover { border-left-color: var(--lex-clr); }
-    .nav-item.par:hover { border-left-color: var(--par-clr); }
-    .nav-item.active    { color: var(--txt); border-left-color: var(--accent1); background: var(--bg3); }
+    /* sidebar */
+    #sb{width:265px;min-width:265px;background:var(--bg2);border-right:1px solid var(--border);padding:28px 0;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
+    #sb .logo{padding:0 24px 22px;border-bottom:1px solid var(--border);margin-bottom:14px}
+    #sb .logo h1{font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--a1)}
+    #sb .logo p{font-size:11px;color:var(--txt3);margin-top:3px;font-family:var(--fc)}
+    .ng{margin-bottom:6px}
+    .nl{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:8px 24px 3px;color:var(--txt3)}
+    .nl.lx{color:var(--lc)} .nl.pr{color:var(--pc)} .nl.ch{color:var(--a3)}
+    .ni{display:block;padding:5px 24px 5px 30px;font-size:12px;color:var(--txt2);text-decoration:none;border-left:2px solid transparent;transition:all .15s;font-family:var(--fc)}
+    .ni:hover{color:var(--txt);background:var(--bg3);border-left-color:var(--a1)}
+    .ni.lx:hover{border-left-color:var(--lc)} .ni.pr:hover{border-left-color:var(--pc)}
+    .ni.ch:hover{border-left-color:var(--a3)} .ni.active{color:var(--txt);border-left-color:var(--a1);background:var(--bg3)}
 
-    /* ── Main ── */
-    #main { flex: 1; padding: 48px 56px; max-width: 960px; }
+    /* main */
+    #main{flex:1;padding:48px 56px;max-width:980px}
 
-    /* ── Hero ── */
-    .hero { margin-bottom: 64px; padding-bottom: 40px; border-bottom: 1px solid var(--border); }
-    .hero .tag {
-      display: inline-block; font-family: var(--font-code); font-size: 11px;
-      font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
-      color: var(--accent2); border: 1px solid var(--accent2);
-      border-radius: 4px; padding: 3px 10px; margin-bottom: 16px;
-    }
-    .hero h1 { font-size: 36px; font-weight: 800; line-height: 1.2; margin-bottom: 12px; letter-spacing: -.01em; }
-    .hero h1 span { color: var(--accent1); }
-    .hero p { font-size: 16px; color: var(--txt2); max-width: 640px; }
+    /* hero */
+    .hero{margin-bottom:60px;padding-bottom:40px;border-bottom:1px solid var(--border)}
+    .hero .tag{display:inline-block;font-family:var(--fc);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--a2);border:1px solid var(--a2);border-radius:4px;padding:3px 10px;margin-bottom:14px}
+    .hero h1{font-size:34px;font-weight:800;line-height:1.2;margin-bottom:10px;letter-spacing:-.01em}
+    .hero h1 span{color:var(--a1)} .hero p{font-size:15px;color:var(--txt2);max-width:640px}
 
-    /* Comparativa pipelines */
-    .pipeline-compare { display: flex; gap: 24px; margin-top: 28px; flex-wrap: wrap; }
-    .pipeline-col { flex: 1; min-width: 260px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
-    .pipeline-col h4 { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 14px; font-family: var(--font-code); }
-    .pipeline-col.old h4 { color: var(--txt3); }
-    .pipeline-col.new h4 { color: var(--accent2); }
-    .pipe-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-    .pipe-node { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; padding: 5px 12px; font-family: var(--font-code); font-size: 11px; font-weight: 600; }
-    .pipe-node.lex  { border-color: var(--lex-clr);  color: var(--lex-clr); }
-    .pipe-node.par  { border-color: var(--par-clr);  color: var(--par-clr); }
-    .pipe-node.ast  { border-color: var(--accent3);  color: var(--accent3); }
-    .pipe-node.html { border-color: var(--accent4);  color: var(--accent4); }
-    .pipe-node.src  { color: var(--txt2); }
-    .pipe-node.gone { border-color: var(--txt3); color: var(--txt3); text-decoration: line-through; opacity: .5; }
-    .pipe-arrow { color: var(--txt3); font-size: 16px; }
+    /* diff pills */
+    .diff-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+    .diff-pill{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:12px;font-family:var(--fc)}
+    .diff-pill.removed .icon{color:var(--a4)} .diff-pill.added .icon{color:var(--a2)} .diff-pill.changed .icon{color:var(--a3)}
+    .diff-pill .icon{font-size:16px;font-weight:800} .diff-pill .txt{color:var(--txt2)}
 
-    /* ── Sección ── */
-    .section { margin-bottom: 64px; scroll-margin-top: 32px; }
-    .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
-    .section-badge { font-family: var(--font-code); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 4px 10px; border-radius: 4px; flex-shrink: 0; }
-    .badge-lex { background: rgba(62,207,178,.15); color: var(--lex-clr); }
-    .badge-par { background: rgba(124,106,247,.15); color: var(--par-clr); }
-    .badge-gen { background: rgba(247,162,75,.15);  color: var(--accent3); }
-    .section-header h2 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+    /* section */
+    .section{margin-bottom:60px;scroll-margin-top:32px}
+    .sh{display:flex;align-items:center;gap:14px;margin-bottom:26px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+    .sb2{font-family:var(--fc);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:4px;flex-shrink:0}
+    .bl{background:rgba(62,207,178,.15);color:var(--lc)} .bp{background:rgba(124,106,247,.15);color:var(--pc)}
+    .bg{background:rgba(247,162,75,.15);color:var(--a3)} .br{background:rgba(224,92,122,.15);color:var(--a4)}
+    .sh h2{font-size:21px;font-weight:700;letter-spacing:-.01em}
 
-    /* ── Tarjeta función ── */
-    .fn-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; transition: border-color .2s; }
-    .fn-card:hover        { border-color: var(--accent1); }
-    .fn-card.lex:hover    { border-color: var(--lex-clr); }
-    .fn-card.par:hover    { border-color: var(--par-clr); }
-    .fn-card.key          { border-color: var(--accent3); }
-    .fn-card.key:hover    { border-color: var(--accent3); box-shadow: 0 0 12px rgba(247,162,75,.2); }
+    /* fn card */
+    .fc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:18px;overflow:hidden;transition:border-color .2s}
+    .fc:hover{border-color:var(--a1)} .fc.lx:hover{border-color:var(--lc)} .fc.pr:hover{border-color:var(--pc)}
+    .fc.new{border-color:var(--a2)} .fc.new:hover{border-color:var(--a2);box-shadow:0 0 14px rgba(62,207,178,.15)}
+    .fc.key{border-color:var(--a3)} .fc.key:hover{border-color:var(--a3);box-shadow:0 0 14px rgba(247,162,75,.18)}
+    .fc.gone{border-color:var(--a4);opacity:.75}
+    .fh2{display:flex;align-items:center;gap:10px;padding:13px 18px;background:var(--bg3);cursor:pointer;user-select:none}
+    .fk{font-family:var(--fc);font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:.08em;flex-shrink:0}
+    .km{background:rgba(62,207,178,.2);color:var(--lc)} .kf{background:rgba(247,162,75,.2);color:var(--a3)}
+    .kc{background:rgba(124,106,247,.2);color:var(--pc)} .kd{background:rgba(224,92,122,.2);color:var(--a4)}
+    .kk{background:rgba(247,162,75,.28);color:var(--a3);font-weight:800} .kn{background:rgba(62,207,178,.28);color:var(--a2);font-weight:800}
+    .fn{font-family:var(--fc);font-size:13px;font-weight:600;color:var(--txt);flex:1}
+    .fb2{font-size:12px;color:var(--txt2);flex:2;font-family:var(--fc)}
+    .ft{color:var(--txt3);font-size:18px;transition:transform .2s;flex-shrink:0}
+    .fc.open .ft{transform:rotate(90deg)}
+    .fb{display:none;padding:18px 22px;border-top:1px solid var(--border)}
+    .fc.open .fb{display:block}
 
-    .fn-header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--bg3); cursor: pointer; user-select: none; }
-    .fn-kind { font-family: var(--font-code); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; text-transform: uppercase; letter-spacing: .08em; flex-shrink: 0; }
-    .kind-method { background: rgba(62,207,178,.2);  color: var(--lex-clr); }
-    .kind-func   { background: rgba(247,162,75,.2);   color: var(--accent3); }
-    .kind-class  { background: rgba(124,106,247,.2);  color: var(--par-clr); }
-    .kind-data   { background: rgba(224,92,122,.2);   color: var(--accent4); }
-    .kind-const  { background: rgba(136,144,176,.2);  color: var(--txt2); }
-    .kind-key    { background: rgba(247,162,75,.25);  color: var(--accent3); font-weight: 800; }
-
-    .fn-name   { font-family: var(--font-code); font-size: 14px; font-weight: 600; color: var(--txt); flex: 1; }
-    .fn-brief  { font-size: 12px; color: var(--txt2); flex: 2; font-family: var(--font-code); }
-    .fn-toggle { color: var(--txt3); font-size: 18px; transition: transform .2s; flex-shrink: 0; }
-    .fn-card.open .fn-toggle { transform: rotate(90deg); }
-    .fn-body   { display: none; padding: 20px 24px; border-top: 1px solid var(--border); }
-    .fn-card.open .fn-body { display: block; }
-
-    .fn-desc { color: var(--txt); margin-bottom: 16px; font-size: 14px; }
-    .fn-sig  { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; font-family: var(--font-code); font-size: 13px; color: var(--accent2); margin-bottom: 16px; overflow-x: auto; white-space: pre; }
-
-    .param-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
-    .param-table th { text-align: left; padding: 6px 12px; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--txt3); border-bottom: 1px solid var(--border); font-family: var(--font-code); }
-    .param-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
-    .param-table tr:last-child td { border-bottom: none; }
-    .param-name { font-family: var(--font-code); color: var(--accent3); }
-    .param-type { font-family: var(--font-code); color: var(--lex-clr); font-size: 12px; }
-    .param-desc { color: var(--txt2); }
-
-    .ret-box { background: var(--code-bg); border-left: 3px solid var(--accent2); padding: 10px 14px; border-radius: 0 var(--radius) var(--radius) 0; font-size: 13px; margin-bottom: 12px; }
-    .ret-box .ret-label { font-family: var(--font-code); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--txt3); margin-bottom: 4px; }
-    .ret-box .ret-val   { font-family: var(--font-code); color: var(--accent2); }
-
-    .note-box { background: rgba(124,106,247,.08); border: 1px solid rgba(124,106,247,.25); border-radius: var(--radius); padding: 12px 16px; font-size: 13px; color: var(--txt2); margin-top: 12px; }
-    .note-box strong { color: var(--accent1); }
-
-    .key-box { background: rgba(247,162,75,.07); border: 1px solid rgba(247,162,75,.3); border-radius: var(--radius); padding: 14px 18px; font-size: 13px; color: var(--txt2); margin: 16px 0; }
-    .key-box strong { color: var(--accent3); }
-
-    /* ── Diagrama ── */
-    .flow-box { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 28px; font-family: var(--font-code); font-size: 13px; color: var(--txt2); margin-bottom: 28px; overflow-x: auto; line-height: 2; white-space: pre; }
-    .flow-box .hi1 { color: var(--lex-clr); }
-    .flow-box .hi2 { color: var(--par-clr); }
-    .flow-box .hi3 { color: var(--accent3); }
-    .flow-box .hi4 { color: var(--accent4); }
-
-    /* ── Tabla de datos ── */
-    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
-    .data-table th { text-align: left; padding: 8px 14px; background: var(--bg3); font-family: var(--font-code); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--txt3); border-bottom: 1px solid var(--border); }
-    .data-table td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
-    .data-table tr:last-child td { border-bottom: none; }
-    .data-table tr:hover td { background: var(--bg3); }
-    .tt { font-family: var(--font-code); color: var(--accent3); font-size: 12px; }
-    .ex { font-family: var(--font-code); color: var(--lex-clr); font-size: 12px; }
-
-    /* ── Callout ── */
-    .callout { border-radius: var(--radius); padding: 14px 18px; font-size: 13px; margin-bottom: 20px; }
-    .callout-info { background: rgba(62,207,178,.08); border: 1px solid rgba(62,207,178,.2); color: var(--txt2); }
-    .callout-warn { background: rgba(247,162,75,.08); border: 1px solid rgba(247,162,75,.2); color: var(--txt2); }
-    .callout-info strong { color: var(--lex-clr); }
-    .callout-warn strong { color: var(--accent3); }
-
-    /* ── Utilidades ── */
-    h3 { font-size: 16px; font-weight: 700; color: var(--txt); margin: 24px 0 12px; }
-    p  { color: var(--txt2); margin-bottom: 12px; font-size: 14px; }
-    code { font-family: var(--font-code); font-size: 12px; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; color: var(--accent3); }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    /* content elements */
+    .fd{color:var(--txt);margin-bottom:14px;font-size:14px}
+    .fs{background:var(--code);border:1px solid var(--border);border-radius:var(--r);padding:11px 15px;font-family:var(--fc);font-size:12.5px;color:var(--a2);margin-bottom:14px;overflow-x:auto;white-space:pre}
+    .pt{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px}
+    .pt th{text-align:left;padding:6px 12px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);border-bottom:1px solid var(--border);font-family:var(--fc)}
+    .pt td{padding:7px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+    .pt tr:last-child td{border-bottom:none}
+    .pn{font-family:var(--fc);color:var(--a3)} .pty{font-family:var(--fc);color:var(--lc);font-size:12px} .pd{color:var(--txt2)}
+    .rb{background:var(--code);border-left:3px solid var(--a2);padding:9px 13px;border-radius:0 var(--r) var(--r) 0;font-size:13px;margin-bottom:12px}
+    .rl{font-family:var(--fc);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);margin-bottom:3px}
+    .rv{font-family:var(--fc);color:var(--a2)}
+    .nb{background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.25);border-radius:var(--r);padding:11px 15px;font-size:13px;color:var(--txt2);margin-top:10px}
+    .nb strong{color:var(--a1)}
+    .kb{background:rgba(247,162,75,.07);border:1px solid rgba(247,162,75,.3);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--txt2);margin:14px 0}
+    .kb strong{color:var(--a3)}
+    .newb{background:rgba(62,207,178,.07);border:1px solid rgba(62,207,178,.3);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--txt2);margin:14px 0}
+    .newb strong{color:var(--a2)}
+    .goneb{background:rgba(224,92,122,.07);border:1px solid rgba(224,92,122,.25);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--txt2);margin:14px 0}
+    .goneb strong{color:var(--a4)}
+    .flow{background:var(--code);border:1px solid var(--border);border-radius:var(--r);padding:22px 26px;font-family:var(--fc);font-size:13px;color:var(--txt2);margin-bottom:26px;overflow-x:auto;line-height:2;white-space:pre}
+    .flow .h1{color:var(--lc)} .flow .h2{color:var(--pc)} .flow .h3{color:var(--a3)} .flow .h4{color:var(--a4)}
+    .dt{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:22px}
+    .dt th{text-align:left;padding:7px 13px;background:var(--bg3);font-family:var(--fc);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);border-bottom:1px solid var(--border)}
+    .dt td{padding:8px 13px;border-bottom:1px solid var(--border);vertical-align:top}
+    .dt tr:last-child td{border-bottom:none} .dt tr:hover td{background:var(--bg3)}
+    .tt{font-family:var(--fc);color:var(--a3);font-size:12px} .ex{font-family:var(--fc);color:var(--lc);font-size:12px}
+    h3{font-size:15px;font-weight:700;color:var(--txt);margin:22px 0 10px}
+    p{color:var(--txt2);margin-bottom:10px;font-size:14px}
+    code{font-family:var(--fc);font-size:12px;background:var(--code);border:1px solid var(--border);padding:2px 6px;border-radius:4px;color:var(--a3)}
+    ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
   </style>
 </head>
 <body>
 
-<!-- ══════════ SIDEBAR ══════════ -->
-<nav id="sidebar">
+<!-- ══ SIDEBAR ══ -->
+<nav id="sb">
   <div class="logo">
     <h1>SMART-HOME</h1>
-    <p>Lexer & Parser una pasada</p>
+    <p>Lexer v3 & Parser — Docs</p>
   </div>
-
-  <div class="nav-group">
-    <div class="nav-label">General</div>
-    <a class="nav-item" href="#pipeline">Pipeline y comparativa</a>
-    <a class="nav-item" href="#gramatica">Gramática con acciones</a>
-    <a class="nav-item" href="#tokens">Tabla de tokens</a>
-    <a class="nav-item" href="#rangos">Rangos nombrados</a>
+  <div class="ng"><div class="nl">General</div>
+    <a class="ni" href="#cambios">Resumen de cambios</a>
+    <a class="ni" href="#clases">Clases utilizadas</a>
+    <a class="ni" href="#pipeline">Pipeline v3</a>
+    <a class="ni" href="#tokens">Tabla de tokens</a>
   </div>
-
-  <div class="nav-group">
-    <div class="nav-label lex">Lexer — lexer.py</div>
-    <a class="nav-item lex" href="#token-class">clase Token</a>
-    <a class="nav-item lex" href="#tt-class">clase TT</a>
-    <a class="nav-item lex" href="#tablas">Tablas de clasificación</a>
-    <a class="nav-item lex" href="#helpers">Helpers numéricos</a>
-    <a class="nav-item lex" href="#smarthomelexer">clase SmartHomeLexer</a>
-    <a class="nav-item lex" href="#lex-tokenizar">  tokenizar()</a>
-    <a class="nav-item lex" href="#lex-tokenizar-linea">  tokenizar_linea()</a>
-    <a class="nav-item lex" href="#lex-reset-ctx">  _reset_ctx()</a>
-    <a class="nav-item lex" href="#lex-procesar-linea">  _procesar_linea()</a>
-    <a class="nav-item lex" href="#lex-clasificar">  _clasificar()</a>
-    <a class="nav-item lex" href="#lex-prefijo">  _prefijo_canonico()</a>
-    <a class="nav-item lex" href="#lex-actualizar-ctx">  _actualizar_ctx()</a>
-    <a class="nav-item lex" href="#lex-validar-rango">  _validar_rango()</a>
+  <div class="ng"><div class="nl lx">Lexer — lexer.py</div>
+    <a class="ni lx" href="#tt">clase TT</a>
+    <a class="ni lx" href="#token">clase Token</a>
+    <a class="ni lx" href="#tablas">Tablas de clasificación</a>
+    <a class="ni lx" href="#rangos">Rangos nombrados</a>
+    <a class="ni lx" href="#helpers-char">★ Helpers de caracteres (nuevas)</a>
+    <a class="ni lx" href="#leer-comentario">  _leer_comentario()</a>
+    <a class="ni lx" href="#leer-cadena">  _leer_cadena()</a>
+    <a class="ni lx" href="#leer-numero">  _leer_numero()</a>
+    <a class="ni lx" href="#extraer-numero">  _extraer_numero()</a>
+    <a class="ni lx" href="#leer-temperatura">  _leer_temperatura()</a>
+    <a class="ni lx" href="#leer-con-sufijo">  _leer_con_sufijo()</a>
+    <a class="ni lx" href="#leer-tiempo">  _leer_tiempo()</a>
+    <a class="ni lx" href="#leer-hora">  _leer_hora()</a>
+    <a class="ni lx" href="#leer-fecha">  _leer_fecha()</a>
+    <a class="ni lx" href="#leer-email">  _leer_email()</a>
+    <a class="ni lx" href="#leer-identificador">  _leer_identificador()</a>
+    <a class="ni lx" href="#helpers-num">Helpers numéricos</a>
+    <a class="ni lx" href="#smarthomelexer">clase SmartHomeLexer</a>
+    <a class="ni lx" href="#tokenizar">  tokenizar()</a>
+    <a class="ni lx" href="#tokenizar-linea">  tokenizar_linea()</a>
+    <a class="ni lx" href="#procesar-linea">  _procesar_linea()</a>
+    <a class="ni lx" href="#siguiente-token">★ _siguiente_token()</a>
+    <a class="ni lx" href="#clasificar">  _clasificar() ← modificada</a>
+    <a class="ni lx" href="#ctx">  _actualizar_ctx()</a>
+    <a class="ni lx" href="#rango">  _validar_rango()</a>
   </div>
-
-  <div class="nav-group">
-    <div class="nav-label par">Parser — parser_una_pasada.py</div>
-    <a class="nav-item par" href="#error-sint">ErrorSintactico</a>
-    <a class="nav-item par" href="#conjuntos">Conjuntos de lookahead</a>
-    <a class="nav-item par" href="#parserhtml">clase ParserHTML</a>
-    <a class="nav-item par" href="#par-cursor">  _actual() / _es()</a>
-    <a class="nav-item par" href="#par-consumir">  _consumir()</a>
-    <a class="nav-item par" href="#par-avanzar">  _avanzar()</a>
-    <a class="nav-item par" href="#par-sincronizar">  _sincronizar()</a>
-    <a class="nav-item par" href="#par-emit">  _emit()</a>
-    <a class="nav-item par" href="#par-html-sensor">  _html_sensor()</a>
-    <a class="nav-item par" href="#par-html-actuador">  _html_actuador()</a>
-    <a class="nav-item par" href="#par-html-item">  _html_item()</a>
-    <a class="nav-item par" href="#par-volcar">  _volcar_actuadores() ★</a>
-    <a class="nav-item par" href="#par-parsear">  parsear()</a>
-    <a class="nav-item par" href="#par-cabecera">  _emitir_cabecera/cierre()</a>
-    <a class="nav-item par" href="#par-instruccion">  _instruccion()</a>
-    <a class="nav-item par" href="#par-when">  _bloque_when()</a>
-    <a class="nav-item par" href="#par-every">  _bloque_every()</a>
-    <a class="nav-item par" href="#par-cuerpo">  _cuerpo() ★</a>
-    <a class="nav-item par" href="#par-condicional">  _condicional()</a>
-    <a class="nav-item par" href="#par-condicion">  _condicion()</a>
-    <a class="nav-item par" href="#par-exprcond">  _expr_cond()</a>
-    <a class="nav-item par" href="#par-asignacion">  _asignacion() ★</a>
-    <a class="nav-item par" href="#par-valores">  _valor_asig() / _valor_literal()</a>
-    <a class="nav-item par" href="#compilar">compilar()</a>
-    <a class="nav-item par" href="#modos">modo_archivo() / interactivo()</a>
-    <a class="nav-item par" href="#gui">seleccionar_archivo_gui()</a>
+  <div class="ng"><div class="nl pr">Parser — parser_una_pasada.py</div>
+    <a class="ni pr" href="#parser-cambios">Cambios en el parser</a>
+    <a class="ni pr" href="#parserhtml">clase ParserHTML</a>
+    <a class="ni pr" href="#compilar">compilar()</a>
+    <a class="ni pr" href="#gui">seleccionar_archivo_gui()</a>
+    <a class="ni pr" href="#main">main()</a>
   </div>
 </nav>
 
-<!-- ══════════ MAIN ══════════ -->
+<!-- ══ MAIN ══ -->
 <main id="main">
 
-  <!-- HERO -->
-  <div class="hero">
-    <div class="tag">UTN FRRe — Sintaxis y Semántica de Lenguajes 2026</div>
-    <h1>Documentación técnica<br><span>SMART-HOME</span> — Parser de una pasada</h1>
-    <p>Referencia completa del Lexer y del nuevo Parser de traducción directa. El parser genera HTML durante el propio análisis sintáctico sin construir un AST intermedio, aplicando la técnica de <em>traducción dirigida por la sintaxis</em>.</p>
+<!-- HERO -->
+<div class="hero">
+  <div class="tag">UTN FRRe — Sintaxis y Semántica de Lenguajes 2026</div>
+  <h1>Documentación <span>v3.0</span><br>SMART-HOME Lexer &amp; Parser</h1>
+  <p>Esta versión elimina completamente el módulo <code>re</code> y hace que las palabras reservadas sean case-sensitive (solo MAYÚSCULAS). Toda la lógica de reconocimiento se implementa con funciones manuales carácter a carácter.</p>
+  <div class="diff-row">
+    <div class="diff-pill removed"><span class="icon">✕</span><span class="txt">import re eliminado</span></div>
+    <div class="diff-pill removed"><span class="icon">✕</span><span class="txt">_REGEX_MASTER eliminado</span></div>
+    <div class="diff-pill removed"><span class="icon">✕</span><span class="txt">re.IGNORECASE eliminado</span></div>
+    <div class="diff-pill added"><span class="icon">+</span><span class="txt">11 funciones _leer_*()</span></div>
+    <div class="diff-pill added"><span class="icon">+</span><span class="txt">5 helpers de caracteres</span></div>
+    <div class="diff-pill added"><span class="icon">+</span><span class="txt">_siguiente_token()</span></div>
+    <div class="diff-pill changed"><span class="icon">~</span><span class="txt">_clasificar() modificada</span></div>
+    <div class="diff-pill changed"><span class="icon">~</span><span class="txt">PALABRAS_RESERVADAS en UPPER</span></div>
+  </div>
+</div>
 
-    <div class="pipeline-compare">
-      <div class="pipeline-col old">
-        <h4>Versión anterior — 4 fases</h4>
-        <div class="pipe-row">
-          <div class="pipe-node src">tokens</div>
-          <span class="pipe-arrow">→</span>
-          <div class="pipe-node par">Parser</div>
-          <span class="pipe-arrow">→</span>
-          <div class="pipe-node ast">AST</div>
-        </div>
-        <div class="pipe-row">
-          <div class="pipe-node ast">Recolector</div>
-          <span class="pipe-arrow">→</span>
-          <div class="pipe-node ast">InfoSeccion[]</div>
-        </div>
-        <div class="pipe-row">
-          <div class="pipe-node gone">HtmlEmitter</div>
-          <span class="pipe-arrow">→</span>
-          <div class="pipe-node html">HTML</div>
-        </div>
-      </div>
-      <div class="pipeline-col new">
-        <h4>Versión actual — 2 fases</h4>
-        <div class="pipe-row">
-          <div class="pipe-node lex">Lexer</div>
-          <span class="pipe-arrow">→</span>
-          <div class="pipe-node src">tokens</div>
-        </div>
-        <div class="pipe-row">
-          <div class="pipe-node par">ParserHTML</div>
-          <span class="pipe-arrow">→</span>
-          <div class="pipe-node html">HTML directo</div>
-        </div>
-      </div>
+<!-- ══ RESUMEN DE CAMBIOS ══ -->
+<section class="section" id="cambios">
+  <div class="sh"><span class="sb2 bg">General</span><h2>Resumen de cambios v2 → v3</h2></div>
+  <div class="flow"><span class="h4">LO QUE SE ELIMINÓ</span>
+  import re                    ← ya no existe en el archivo
+  re.compile(...)              ← reemplazado por _siguiente_token()
+  _REGEX_MASTER                ← reemplazado por funciones _leer_*()
+  re.IGNORECASE                ← ya no aplica
+  re.match(...) en helpers     ← reemplazado por _extraer_numero()
+
+<span class="h3">LO QUE SE AGREGÓ</span>
+  Helpers de caracteres (5 funciones):
+    _es_letra()          _es_digito()      _es_alfanum_o_guion()
+    _es_email_char()     _es_blanco()
+
+  Funciones de reconocimiento (11 funciones):
+    _leer_comentario()   _leer_cadena()      _leer_numero()
+    _leer_temperatura()  _leer_con_sufijo()  _leer_tiempo()
+    _leer_hora()         _leer_fecha()       _leer_email()
+    _leer_identificador()
+
+  Función de extracción numérica (1 función):
+    _extraer_numero()    ← reemplaza re.match en los helpers de rango
+
+  Método orquestador (1 método):
+    _siguiente_token()   ← reemplaza _REGEX_MASTER
+
+<span class="h2">LO QUE SE MODIFICÓ</span>
+  _clasificar():
+    v2: lower = palabra.lower()
+        if lower in PALABRAS_RESERVADAS ...    ← case-insensitive
+    v3: if palabra in PALABRAS_RESERVADAS ...  ← case-SENSITIVE
+
+  PALABRAS_RESERVADAS (dict):
+    v2: claves en minúsculas { "when": TT.WHEN, "if": TT.IF, ... }
+    v3: claves en MAYÚSCULAS { "WHEN": TT.WHEN, "IF": TT.IF, ... }
+
+  _procesar_linea():
+    v2: llamaba a _REGEX_MASTER.match(linea, pos)
+    v3: llama a self._siguiente_token(linea, pos, ...)</div>
+</section>
+
+<!-- ══ CLASES UTILIZADAS ══ -->
+<section class="section" id="clases">
+  <div class="sh"><span class="sb2 bg">General</span><h2>Clases utilizadas y su propósito</h2></div>
+  <table class="dt">
+    <thead><tr><th>Clase</th><th>Archivo</th><th>Para qué sirve</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="tt">TT</td><td class="ex">lexer.py</td>
+        <td class="pd">Namespace de constantes de cadena que representan cada tipo de token. No se instancia; solo agrupa constantes como <code>TT.WHEN</code>, <code>TT.SENSOR</code>, <code>TT.TEMPERATURA</code>. En v3 las constantes de palabras reservadas son idénticas a las claves del diccionario <code>PALABRAS_RESERVADAS</code> (ambas en MAYÚSCULAS), lo que hace el código coherente.</td>
+      </tr>
+      <tr>
+        <td class="tt">Token</td><td class="ex">lexer.py</td>
+        <td class="pd">Dataclass que almacena la información de un token reconocido: tipo (constante TT), valor (texto crudo del fuente), número de línea y columna. Es la unidad de comunicación entre el Lexer y el Parser. No cambió en v3.</td>
+      </tr>
+      <tr>
+        <td class="tt">SmartHomeLexer</td><td class="ex">lexer.py</td>
+        <td class="pd">Clase principal del analizador léxico. Mantiene el estado del análisis (contexto dispositivo→atributo) y expone los métodos públicos <code>tokenizar()</code> y <code>tokenizar_linea()</code>. En v3 reemplaza el uso de <code>_REGEX_MASTER</code> por llamadas al nuevo método <code>_siguiente_token()</code>.</td>
+      </tr>
+      <tr>
+        <td class="tt">ErrorSintactico</td><td class="ex">parser_una_pasada.py</td>
+        <td class="pd">Excepción personalizada que el parser lanza cuando la gramática no se cumple. Transporta el mensaje de error y el token que lo provocó. No cambió en v3.</td>
+      </tr>
+      <tr>
+        <td class="tt">ParserHTML</td><td class="ex">parser_una_pasada.py</td>
+        <td class="pd">Parser LL(1) descendente recursivo que genera HTML durante el análisis sintáctico, sin construir AST intermedio. Solo cambió su importación: ahora importa desde <code>lexer_v3</code> (o <code>lexer</code> renombrado) en lugar de la versión anterior. Toda la lógica interna es igual.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══ PIPELINE ══ -->
+<section class="section" id="pipeline">
+  <div class="sh"><span class="sb2 bg">General</span><h2>Pipeline v3</h2></div>
+  <div class="flow"><span class="h1">FASE 1 — Análisis léxico  (lexer.py v3)</span>
+  fuente (str)
+    └─ SmartHomeLexer.tokenizar()
+         └─ _procesar_linea()  por cada línea
+              ├─ saltar blancos con _es_blanco()
+              ├─ <span class="h3">_siguiente_token()</span>       ← NUEVO: reemplaza _REGEX_MASTER
+              │    ├─ _leer_comentario()
+              │    ├─ _leer_cadena()
+              │    ├─ _leer_email()
+              │    ├─ _leer_temperatura()
+              │    ├─ _leer_con_sufijo('lux')  → ILUMINANCIA
+              │    ├─ _leer_con_sufijo('%')    → PORCENTAJE
+              │    ├─ _leer_tiempo()           → llama a _leer_con_sufijo('s'/'m'/'h')
+              │    ├─ _leer_fecha()
+              │    ├─ _leer_hora()
+              │    ├─ operadores  (comparación directa de chars)
+              │    └─ _leer_identificador() → _clasificar()
+              ├─ _actualizar_ctx()
+              └─ _validar_rango()  → usa _extraer_numero() en vez de re.match
+
+<span class="h2">FASE 2 — Análisis sintáctico + HTML  (parser_una_pasada.py)</span>
+  Sin cambios internos. Solo actualizado el import del lexer.</div>
+</section>
+
+<!-- ══ TABLA DE TOKENS ══ -->
+<section class="section" id="tokens">
+  <div class="sh"><span class="sb2 bg">General</span><h2>Tabla de tokens — case-sensitivity en v3</h2></div>
+  <p>La novedad de v3 es la columna <strong>Case</strong>: indica si el token se reconoce solo en mayúsculas o de forma insensible.</p>
+  <table class="dt">
+    <thead><tr><th>Tipo TT</th><th>Ejemplo válido</th><th>Ejemplo inválido en v3</th><th>Case</th></tr></thead>
+    <tbody>
+      <tr><td class="tt">WHEN IF THEN ELSE DO END EVERY</td><td class="ex">WHEN, IF, DO</td><td class="ex">when, When, iF</td><td>Solo UPPER</td></tr>
+      <tr><td class="tt">AND OR NOT</td><td class="ex">AND, OR, NOT</td><td class="ex">and, And</td><td>Solo UPPER</td></tr>
+      <tr><td class="tt">TRUE FALSE ON OFF</td><td class="ex">TRUE, OFF</td><td class="ex">true, False, on</td><td>Solo UPPER</td></tr>
+      <tr><td class="tt">FRIO CALOR VENT</td><td class="ex">FRIO, VENT</td><td class="ex">frio, Calor</td><td>Solo UPPER</td></tr>
+      <tr><td class="tt">BLANCO ROJO AZUL</td><td class="ex">BLANCO, AZUL</td><td class="ex">blanco, Rojo</td><td>Solo UPPER</td></tr>
+      <tr><td class="tt">SENSOR</td><td class="ex">sensor_luz, SENSOR_LUZ</td><td>—</td><td>Insensible</td></tr>
+      <tr><td class="tt">ACTUADOR</td><td class="ex">foco_sala, FOCO_SALA</td><td>—</td><td>Insensible</td></tr>
+      <tr><td class="tt">ATTR_BRILLO … ATTR_ACTIVADA</td><td class="ex">brillo, BRILLO</td><td>—</td><td>Insensible</td></tr>
+      <tr><td class="tt">TEMPERATURA</td><td class="ex">25°C, -5°C, 25°c</td><td>—</td><td>Insensible (°C/°c)</td></tr>
+      <tr><td class="tt">PORCENTAJE ILUMINANCIA TIEMPO</td><td class="ex">80%, 600lux, 30m</td><td>—</td><td>Insensible</td></tr>
+      <tr><td class="tt">HORA FECHA EMAIL CADENA</td><td class="ex">22:00, 21/04/2026</td><td>—</td><td>No aplica</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════ LEXER ══════════ -->
+
+<section class="section" id="tt">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>clase TT — Token Types</h2></div>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kc">class</span>
+      <span class="fn">TT</span>
+      <span class="fb2">Namespace de constantes de tipo de token — sin cambios en estructura</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Clase sin instancias que actúa como enumeración de cadenas. Cada atributo es una cadena igual a su nombre (<code>TT.WHEN == "WHEN"</code>). No se instancia nunca; solo agrupa y nombra las constantes.</p>
+      <div class="newb"><strong>Cambio v3:</strong> en v2 las claves de <code>PALABRAS_RESERVADAS</code> estaban en minúsculas (<code>"when"</code>) y los valores de <code>TT</code> en mayúsculas (<code>"WHEN"</code>). En v3 ambos están en MAYÚSCULAS, lo que hace la clasificación directa: <code>palabra in PALABRAS_RESERVADAS</code> sin necesidad de normalizar.</div>
+      <p class="fd">Agrupa los tokens en: palabras reservadas, operadores lógicos, booleanos, valores discretos, dispositivos, atributos tipados, literales con unidad, literales simples, operadores y especiales.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="token">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>clase Token</h2></div>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kd">dataclass</span>
+      <span class="fn">Token</span>
+      <span class="fb2">Unidad mínima de información producida por el lexer</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Estructura inmutable con cuatro campos. El decorador <code>@dataclass</code> genera automáticamente <code>__init__</code> y <code>__repr__</code>. El <code>__str__</code> está definido manualmente para formatear la salida de consola con alineación fija. No cambió en v3.</p>
+      <table class="pt"><thead><tr><th>Campo</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">tipo</td><td class="pty">str</td><td class="pd">Constante TT que clasifica el token (ej. <code>TT.SENSOR</code>)</td></tr>
+        <tr><td class="pn">valor</td><td class="pty">str</td><td class="pd">Texto crudo del token tal como aparece en el fuente</td></tr>
+        <tr><td class="pn">linea</td><td class="pty">int</td><td class="pd">Número de línea 1-based</td></tr>
+        <tr><td class="pn">col</td><td class="pty">int</td><td class="pd">Número de columna 1-based</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tablas">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Tablas de clasificación</h2></div>
+
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kd">dict</span>
+      <span class="fn">PALABRAS_RESERVADAS</span>
+      <span class="fb2">Cambio v3: claves ahora en MAYÚSCULAS</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Diccionario que mapea nombre de palabra reservada → constante TT. La búsqueda es O(1) y determina si un identificador es una palabra del lenguaje.</p>
+      <div class="newb"><strong>Cambio v3:</strong> las claves pasaron de minúsculas a MAYÚSCULAS. Esto hace la clasificación case-sensitive sin necesidad de normalizar: si el usuario escribe <code>when</code>, la consulta falla porque <code>"when"</code> no existe como clave, y el token se convierte en <code>IDENTIFICADOR</code>.</div>
+      <div class="fs">v2:  { "when": TT.WHEN, "if": TT.IF, "and": TT.AND, ... }
+v3:  { "WHEN": TT.WHEN, "IF": TT.IF, "AND": TT.AND, ... }</div>
     </div>
   </div>
 
-  <!-- ─── PIPELINE ─── -->
-  <section class="section" id="pipeline">
-    <div class="section-header">
-      <span class="section-badge badge-gen">General</span>
-      <h2>Pipeline y comparativa</h2>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kd">tuple / dict</span>
+      <span class="fn">PREFIJOS_SENSOR / PREFIJOS_ACTUADOR / ATRIBUTOS_CONOCIDOS / TABLA_RANGOS</span>
+      <span class="fb2">Sin cambios en v3</span>
+      <span class="ft">›</span>
     </div>
-
-    <div class="flow-box"><span class="hi1">FASE 1 — Análisis léxico  (lexer.py)  — sin cambios</span>
-  fuente (str)
-    └─ SmartHomeLexer.tokenizar()
-         ├─ _procesar_linea()  por cada línea
-         │    ├─ _REGEX_MASTER.match()
-         │    ├─ _clasificar()
-         │    ├─ _actualizar_ctx()
-         │    └─ _validar_rango()   ← advertencias semánticas tempranas
-         └─ retorna  List[Token]
-
-<span class="hi2">FASE 2 — Análisis sintáctico + traducción HTML  (parser_una_pasada.py)</span>
-  List[Token]
-    └─ ParserHTML.parsear()
-         ├─ _emitir_cabecera()              → escribe &lt;!DOCTYPE&gt;...&lt;body&gt;
-         ├─ _instruccion()  por cada bloque raíz
-         │    ├─ _bloque_when()
-         │    │    ├─ _condicion()           → retorna texto + sensores (NO emite)
-         │    │    ├─ _emit(&lt;div&gt; + &lt;h2&gt;)   → acción semántica: abrir sección
-         │    │    ├─ _html_sensor()         → acción semántica: bloque verde
-         │    │    ├─ _cuerpo()
-         │    │    │    ├─ _asignacion()     → acumula en OrderedDict (NO emite)
-         │    │    │    ├─ _asignacion()     → acumula mismo actuador
-         │    │    │    └─ _volcar_actuadores() → acción semántica: bloques grises
-         │    │    └─ _emit(&lt;/div&gt;)          → acción semántica: cerrar sección
-         │    ├─ _bloque_every()             → igual que WHEN con TIEMPO
-         │    └─ _condicional()              → igual con IF/THEN/ELSE
-         └─ _emitir_cierre()                → escribe &lt;/body&gt;&lt;/html&gt;</div>
-
-    <div class="callout callout-info">
-      <strong>Diferencia clave respecto a la versión anterior:</strong> el parser ya no produce ninguna estructura de datos intermedia. No existen <code>NodoPrograma</code>, <code>NodoBloqueWhen</code>, <code>InfoSeccion</code>, <code>InfoActuador</code>, <code>Recolector</code> ni <code>HtmlEmitter</code>. Todo el HTML se genera en el mismo pasaje en que se reconocen los tokens.
+    <div class="fb">
+      <p class="fd"><strong>PREFIJOS_SENSOR / PREFIJOS_ACTUADOR</strong>: tuplas ordenadas de mayor a menor longitud de prefijo, garantizando que el prefijo más específico se encuentre primero. Sensores y actuadores siguen siendo case-insensitive porque son nombres de dispositivos dados por el usuario, no palabras del lenguaje.</p>
+      <p class="fd"><strong>ATRIBUTOS_CONOCIDOS</strong>: diccionario <code>nombre_lower → TT.ATTR_*</code> consultado solo cuando el token anterior fue <code>PUNTO</code>. Permite al parser recibir tokens específicos como <code>ATTR_BRILLO</code>.</p>
+      <p class="fd"><strong>TABLA_RANGOS</strong>: diccionario <code>(prefijo, TT.ATTR_*) → (tipo_esperado, rango, desc)</code>. Consultado por <code>_validar_rango()</code> para emitir advertencias semánticas tempranas de valores fuera de rango.</p>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- ─── GRAMÁTICA CON ACCIONES ─── -->
-  <section class="section" id="gramatica">
-    <div class="section-header">
-      <span class="section-badge badge-gen">General</span>
-      <h2>Gramática con acciones semánticas</h2>
+<section class="section" id="rangos">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Rangos nombrados</h2></div>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kd">tuple</span>
+      <span class="fn">RANGO_TEMP_1 / RANGO_TEMP_2 / RANGO_PERCENT / RANGO_LUX</span>
+      <span class="fb2">Sin cambios en v3</span>
+      <span class="ft">›</span>
     </div>
-    <p>Las llaves <code>{ … }</code> indican acciones semánticas: código que se ejecuta en el momento en que esa parte de la regla es reconocida. Esta notación es estándar en la teoría de compiladores.</p>
-    <div class="flow-box">programa    ::= { instruccion }+  EOF
-                <span class="hi3">{ _emitir_cabecera() }</span>                <span class="hi3">{ _emitir_cierre() }</span>
-
-instruccion ::= bloque_when | bloque_every | condicional | asignacion_suelta
-
-bloque_when ::= WHEN condicion DO
-                <span class="hi3">{ _emit(&lt;div seccion&gt;) + _emit(&lt;h2&gt;Cuando:…&lt;/h2&gt;) }</span>
-                <span class="hi3">{ para cada sensor: _html_sensor() → &lt;div green&gt;&lt;h2&gt;…&lt;/h2&gt;&lt;/div&gt; }</span>
-                cuerpo
-                END
-                <span class="hi3">{ _emit(&lt;/div&gt;) }</span>
-
-bloque_every::= EVERY TIEMPO DO
-                <span class="hi3">{ _emit(&lt;div seccion&gt;) + _emit(&lt;h2&gt;Cada: TIEMPO&lt;/h2&gt;) }</span>
-                cuerpo
-                END
-                <span class="hi3">{ _emit(&lt;/div&gt;) }</span>
-
-cuerpo      ::= accion+
-                <span class="hi3">{ mantiene OrderedDict  { actuador: [&lt;li&gt;...] } }</span>
-                <span class="hi3">{ al llegar a END/ELSE: _volcar_actuadores() }</span>
-
-accion      ::= asignacion | condicional
-
-condicional ::= IF condicion THEN
-                <span class="hi3">{ _emit(&lt;div seccion&gt;) + _emit(&lt;h3&gt;Si:…&lt;/h3&gt;) }</span>
-                <span class="hi3">{ para cada sensor: _html_sensor() }</span>
-                cuerpo
-                [ ELSE
-                  <span class="hi3">{ _emit(&lt;/div&gt;) + _emit(&lt;div seccion&gt;) + _emit(&lt;h3&gt;En caso contrario&lt;/h3&gt;) }</span>
-                  cuerpo ]
-                END
-                <span class="hi3">{ _emit(&lt;/div&gt;) }</span>
-
-asignacion  ::= ACTUADOR PUNTO ATTR OP_ASIG valor_asig
-                <span class="hi3">{ acum[actuador].append(_html_item())  ← NO emite todavía }</span>
-
-condicion   ::= expr_cond ( (AND|OR) expr_cond )*
-                <span class="hi3">{ retorna (texto_legible, lista_de_sensores) — NO emite }</span></div>
-  </section>
-
-  <!-- ─── TABLA DE TOKENS ─── -->
-  <section class="section" id="tokens">
-    <div class="section-header">
-      <span class="section-badge badge-gen">General</span>
-      <h2>Tabla de tokens</h2>
+    <div class="fb">
+      <p class="fd">Constantes exportables con forma <code>(min, max, descripcion)</code> que el parser puede importar para sus propias validaciones semánticas.</p>
+      <div class="fs">RANGO_TEMP_1  = (-10.0,  50.0, "RANGO_TEMP_1: -10.0 a 50.0 grados C")
+RANGO_TEMP_2  = ( 16.0,  30.0, "RANGO_TEMP_2: 16.0 a 30.0 grados C")
+RANGO_PERCENT = (  0.0, 100.0, "RANGO_PERCENT: 0 a 100 %")
+RANGO_LUX     = (  0.0,1000.0, "RANGO_LUX: 0 a 1000 lux")</div>
     </div>
-    <table class="data-table">
-      <thead><tr><th>Constante TT</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
-      <tbody>
-        <tr><td class="tt">WHEN / IF / THEN / ELSE / DO / END / EVERY</td><td>Palabras reservadas</td><td class="ex">WHEN … DO … END</td></tr>
-        <tr><td class="tt">AND / OR / NOT</td><td>Operadores lógicos</td><td class="ex">sensor_temp > 25°C AND …</td></tr>
-        <tr><td class="tt">TRUE / FALSE</td><td>Booleanos de sensores</td><td class="ex">sensor_movimiento == TRUE</td></tr>
-        <tr><td class="tt">ON / OFF</td><td>Booleanos de actuadores</td><td class="ex">foco_sala.estado = ON</td></tr>
-        <tr><td class="tt">FRIO / CALOR / VENT</td><td>Modos del aire acondicionado</td><td class="ex">aire_ac.modo = FRIO</td></tr>
-        <tr><td class="tt">BLANCO / ROJO / AZUL</td><td>Colores del foco</td><td class="ex">foco_p.color = azul</td></tr>
-        <tr><td class="tt">SENSOR</td><td>Nombre de sensor</td><td class="ex">sensor_luz</td></tr>
-        <tr><td class="tt">ACTUADOR</td><td>Nombre de actuador</td><td class="ex">foco_entrada</td></tr>
-        <tr><td class="tt">ATTR_ESTADO … ATTR_ACTIVADA</td><td>Atributos tipados emitidos tras PUNTO</td><td class="ex">.brillo → ATTR_BRILLO</td></tr>
-        <tr><td class="tt">ATTR_GENERICO</td><td>Atributo no reconocido</td><td class="ex">.cualquier_nombre</td></tr>
-        <tr><td class="tt">TEMPERATURA / PORCENTAJE / ILUMINANCIA / TIEMPO</td><td>Literales con unidad</td><td class="ex">25°C, 80%, 600lux, 30m</td></tr>
-        <tr><td class="tt">HORA / FECHA / EMAIL / CADENA</td><td>Literales estructurados</td><td class="ex">22:00, 21/04/2026, "texto"</td></tr>
-        <tr><td class="tt">ENTERO / FLOTANTE / IDENTIFICADOR</td><td>Literales genéricos</td><td class="ex">42, 3.14, nombre</td></tr>
-        <tr><td class="tt">OP_EQ/NEQ/GT/LT/GTE/LTE / OP_ASIG</td><td>Operadores</td><td class="ex">== != > < >= <= =</td></tr>
-        <tr><td class="tt">PUNTO / COMENTARIO / DESCONOCIDO / EOF</td><td>Puntuación y especiales</td><td class="ex">. // ? EOF</td></tr>
-      </tbody>
-    </table>
-  </section>
+  </div>
+</section>
 
-  <!-- ─── RANGOS ─── -->
-  <section class="section" id="rangos">
-    <div class="section-header">
-      <span class="section-badge badge-gen">General</span>
-      <h2>Rangos nombrados</h2>
+<!-- ══ HELPERS DE CARACTERES ══ -->
+<section class="section" id="helpers-char">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>★ Helpers de caracteres — nuevas en v3</h2></div>
+  <p>Cinco funciones que reemplazan las clases de caracteres que antes definía el motor de expresiones regulares (<code>\w</code>, <code>\d</code>, <code>\s</code>, etc.). Son el bloque más primitivo sobre el que se construyen todas las funciones de reconocimiento.</p>
+
+  <div class="fc lx new">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_es_letra(c)</span>
+      <span class="fb2">True si c es letra a-z o A-Z</span>
+      <span class="ft">›</span>
     </div>
-    <table class="data-table">
-      <thead><tr><th>Constante</th><th>Rango</th><th>Tipo literal</th><th>Usado por</th></tr></thead>
-      <tbody>
-        <tr><td class="tt">RANGO_TEMP_1</td><td>-10.0 °C a 50.0 °C</td><td class="ex">TEMPERATURA</td><td>sensor_temp, aire_.temp_act</td></tr>
-        <tr><td class="tt">RANGO_TEMP_2</td><td>16.0 °C a 30.0 °C</td><td class="ex">TEMPERATURA</td><td>aire_.temp_obj</td></tr>
-        <tr><td class="tt">RANGO_PERCENT</td><td>0 % a 100 %</td><td class="ex">PORCENTAJE</td><td>sensor_humedad, foco_.brillo, persiana_.posicion, altavoz_.volumen</td></tr>
-        <tr><td class="tt">RANGO_LUX</td><td>0 lux a 1000 lux</td><td class="ex">ILUMINANCIA</td><td>sensor_luz</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <!-- ══════════ LEXER ══════════ -->
-
-  <section class="section" id="token-class">
-    <div class="section-header"><span class="section-badge badge-lex">Lexer</span><h2>clase Token</h2></div>
-    <div class="fn-card lex open">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-data">dataclass</span>
-        <span class="fn-name">Token</span>
-        <span class="fn-brief">Unidad mínima producida por el lexer</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Estructura de datos inmutable con cuatro campos. El parser de una pasada la usa igual que antes: lee <code>tok.tipo</code> para tomar decisiones sintácticas y <code>tok.valor</code> para construir el texto HTML.</p>
-        <table class="param-table">
-          <thead><tr><th>Campo</th><th>Tipo</th><th>Descripción</th></tr></thead>
-          <tbody>
-            <tr><td class="param-name">tipo</td><td class="param-type">str</td><td class="param-desc">Constante TT (ej. <code>TT.SENSOR</code>, <code>TT.TEMPERATURA</code>)</td></tr>
-            <tr><td class="param-name">valor</td><td class="param-type">str</td><td class="param-desc">Texto crudo del fuente (ej. <code>"sensor_luz"</code>, <code>"25°C"</code>)</td></tr>
-            <tr><td class="param-name">linea</td><td class="param-type">int</td><td class="param-desc">Número de línea 1-based</td></tr>
-            <tr><td class="param-name">col</td><td class="param-type">int</td><td class="param-desc">Número de columna 1-based</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="fb">
+      <p class="fd">Verifica si un carácter pertenece al alfabeto latino básico usando comparación de rangos Unicode directa, que es más rápida que <code>c.isalpha()</code> y tiene la ventaja de excluir letras con tilde y ñ (que no son válidas en el lenguaje según la consigna).</p>
+      <div class="fs">('a' <= c <= 'z') or ('A' <= c <= 'Z')</div>
+      <div class="newb"><strong>¿Por qué no usar <code>c.isalpha()</code>?</strong> Porque <code>isalpha()</code> retorna <code>True</code> para letras como <code>á</code>, <code>ñ</code>, <code>ü</code>, etc. La consigna especifica que no se admiten vocales acentuadas ni ñ, así que la comparación de rango es más correcta.</div>
     </div>
-  </section>
+  </div>
 
-  <section class="section" id="tt-class">
-    <div class="section-header"><span class="section-badge badge-lex">Lexer</span><h2>clase TT</h2></div>
-    <div class="fn-card lex">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-const">constantes</span>
-        <span class="fn-name">TT  (Token Types)</span>
-        <span class="fn-brief">Namespace de todas las constantes de tipo de token</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Clase sin instancias que actúa como enumeración de cadenas. Cada atributo es una cadena igual a su nombre (<code>TT.SENSOR == "SENSOR"</code>). Permite usar las constantes en comparaciones, como claves de diccionario y como etiquetas legibles en mensajes de error sin importar <code>enum</code>.</p>
-        <p class="fn-desc">En el parser de una pasada, <code>TT</code> se usa intensivamente en los conjuntos <code>TIPOS_OP_CMP</code>, <code>TIPOS_ATTR</code> y <code>TIPOS_VALOR</code> para los chequeos de lookahead con <code>_es()</code>.</p>
-      </div>
+  <div class="fc lx new">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_es_digito(c)</span>
+      <span class="fb2">True si c es dígito 0-9</span>
+      <span class="ft">›</span>
     </div>
-  </section>
-
-  <section class="section" id="tablas">
-    <div class="section-header"><span class="section-badge badge-lex">Lexer</span><h2>Tablas de clasificación</h2></div>
-    <div class="fn-card lex">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-const">dict / tuple</span>
-        <span class="fn-name">PALABRAS_RESERVADAS  /  PREFIJOS_SENSOR  /  PREFIJOS_ACTUADOR  /  ATRIBUTOS_CONOCIDOS  /  TABLA_RANGOS</span>
-        <span class="fn-brief">Estructuras estáticas de clasificación consultadas durante la tokenización</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc"><strong>PALABRAS_RESERVADAS</strong>: diccionario <code>nombre_lower → TT.*</code>. Permite clasificar en O(1) cualquier palabra reservada, booleano, modo o color.</p>
-        <p class="fn-desc"><strong>PREFIJOS_SENSOR / PREFIJOS_ACTUADOR</strong>: tuplas ordenadas de mayor a menor longitud de prefijo para garantizar que el prefijo más específico se encuentre primero.</p>
-        <p class="fn-desc"><strong>ATRIBUTOS_CONOCIDOS</strong>: diccionario <code>nombre_lower → TT.ATTR_*</code> consultado solo cuando el token anterior fue <code>PUNTO</code>. Permite al parser recibir tokens como <code>ATTR_BRILLO</code> en lugar de <code>IDENTIFICADOR</code>.</p>
-        <p class="fn-desc"><strong>TABLA_RANGOS</strong>: diccionario <code>(prefijo, TT.ATTR_*) → (tipo_esperado, rango, desc)</code>. Consultado por <code>_validar_rango()</code> para emitir advertencias de rango durante el análisis léxico.</p>
-      </div>
+    <div class="fb">
+      <p class="fd">Verifica si un carácter es un dígito decimal usando comparación de rango. Equivalente a <code>c.isdigit()</code> para dígitos ASCII, pero evita que caracteres Unicode como <code>²</code> o <code>٣</code> sean reconocidos como dígitos.</p>
+      <div class="fs">'0' <= c <= '9'</div>
     </div>
-  </section>
+  </div>
 
-  <section class="section" id="helpers">
-    <div class="section-header"><span class="section-badge badge-lex">Lexer</span><h2>Helpers numéricos</h2></div>
-    <div class="fn-card lex">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-func">func</span>
-        <span class="fn-name">_num_temperatura(v)  /  _num_porcentaje(v)  /  _num_iluminancia(v)</span>
-        <span class="fn-brief">Extraen el valor numérico de un token literal con unidad</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Funciones auxiliares que usan una expresión regular para capturar la parte numérica de tokens como <code>"25°C"</code>, <code>"80%"</code> o <code>"600lux"</code> y retornan un <code>float</code>. Son usadas exclusivamente por <code>_validar_rango()</code> a través del diccionario <code>_EXTRACTOR</code>.</p>
-        <div class="fn-sig">_num_temperatura("25°C")   → 25.0
-_num_porcentaje("80%")     → 80.0
-_num_iluminancia("600lux") → 600.0</div>
-      </div>
+  <div class="fc lx new">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_es_alfanum_o_guion(c)</span>
+      <span class="fb2">True si c puede formar parte de un identificador</span>
+      <span class="ft">›</span>
     </div>
-  </section>
-
-  <section class="section" id="smarthomelexer">
-    <div class="section-header"><span class="section-badge badge-lex">Lexer</span><h2>clase SmartHomeLexer</h2></div>
-
-    <div class="fn-card lex" id="lex-tokenizar">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">tokenizar(fuente, num_linea_base=1)</span>
-        <span class="fn-brief">Tokeniza el texto completo — API principal del lexer</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Divide el fuente en líneas y llama a <code>_procesar_linea()</code> por cada una. Reinicia <code>errores</code>, <code>advertencias</code> y el contexto al inicio. Agrega un token <code>EOF</code> al final.</p>
-        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">List[Token] — todos los tokens sin blancos ni comentarios, más EOF</div></div>
-      </div>
+    <div class="fb">
+      <p class="fd">Combina <code>_es_letra</code>, <code>_es_digito</code> y la comprobación de guion bajo. Es la condición que determina hasta dónde puede extenderse un identificador una vez que comenzó. Usada en el bucle de <code>_leer_identificador()</code>.</p>
+      <div class="fs">_es_letra(c) or _es_digito(c) or c == '_'</div>
     </div>
+  </div>
 
-    <div class="fn-card lex" id="lex-tokenizar-linea">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">tokenizar_linea(linea, num_linea=1)</span>
-        <span class="fn-brief">Tokeniza una sola línea — modo interactivo</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Variante para el modo interactivo. No reinicia el contexto entre llamadas, permitiendo que instrucciones distribuidas en múltiples líneas mantengan coherencia de contexto dispositivo→atributo.</p>
-      </div>
+  <div class="fc lx new">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_es_email_char(c)</span>
+      <span class="fb2">True si c es válido en nombre de usuario o dominio de email</span>
+      <span class="ft">›</span>
     </div>
-
-    <div class="fn-card lex" id="lex-reset-ctx">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_reset_ctx()</span>
-        <span class="fn-brief">Reinicia _ctx_prefijo, _ctx_attr_tipo y _ultimo_tipo a None</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Limpia las tres variables de estado que forman el autómata de contexto. Se llama al inicio de <code>tokenizar()</code> y cuando el usuario escribe <code>reset</code> en modo interactivo.</p>
-      </div>
+    <div class="fb">
+      <p class="fd">Define el conjunto de caracteres permitidos en las partes del email según la consigna: letras, dígitos, guion bajo, punto, signo más y signo menos. Usada tanto para validar el nombre de usuario como el dominio en <code>_leer_email()</code>.</p>
+      <div class="fs">_es_letra(c) or _es_digito(c) or c in ('_', '.', '+', '-')</div>
     </div>
+  </div>
 
-    <div class="fn-card lex" id="lex-procesar-linea">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_procesar_linea(linea, num_linea, tokens)</span>
-        <span class="fn-brief">Núcleo del análisis léxico — aplica el regex maestro</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Bucle que aplica <code>_REGEX_MASTER.match(linea, pos)</code> en cada iteración. Si hay coincidencia, determina el tipo por el índice del grupo capturado, construye el token, y llama a <code>_clasificar()</code>, <code>_actualizar_ctx()</code> y <code>_validar_rango()</code>. Si no hay coincidencia, emite un token <code>DESCONOCIDO</code> y registra el error léxico.</p>
-        <div class="note-box"><strong>_REGEX_MASTER:</strong> un único <code>re.Pattern</code> compilado con todos los patrones unidos por <code>|</code> en grupos numerados. El orden de los patrones en la lista <code>PATRONES</code> determina la precedencia, resolviendo posibles ambigüedades (ej. <code>250lux</code> se captura como ILUMINANCIA antes de que el número <code>250</code> sea capturado como ENTERO).</div>
-      </div>
+  <div class="fc lx new">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_es_blanco(c)</span>
+      <span class="fb2">True si c es espacio, tabulación, retorno de carro o salto de línea</span>
+      <span class="ft">›</span>
     </div>
-
-    <div class="fn-card lex" id="lex-clasificar">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_clasificar(palabra)</span>
-        <span class="fn-brief">Asigna la categoría correcta a un IDENTIFICADOR crudo</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Consulta en cascada con 5 niveles de prioridad:</p>
-        <div class="fn-sig">1. lower in PALABRAS_RESERVADAS  →  (TT.WHEN | TT.AND | TT.FRIO | …)
-2. startswith(PREFIJO_SENSOR)    →  TT.SENSOR
-3. startswith(PREFIJO_ACTUADOR)  →  TT.ACTUADOR
-4. _ultimo_tipo == PUNTO         →  ATRIBUTOS_CONOCIDOS.get(lower, ATTR_GENERICO)
-5. fallback                      →  TT.IDENTIFICADOR</div>
-        <div class="note-box"><strong>El paso 4</strong> es la clave que permite al parser recibir tokens específicos como <code>ATTR_BRILLO</code> o <code>ATTR_EMAIL_NOTIF</code> en lugar del genérico <code>IDENTIFICADOR</code>, habilitando las reglas de producción directas.</div>
-      </div>
+    <div class="fb">
+      <p class="fd">Usada en el bucle principal de <code>_procesar_linea()</code> para saltar los espacios entre tokens. Reemplaza la clase <code>\s</code> del regex.</p>
+      <div class="fs">c in (' ', '\t', '\r', '\n')</div>
     </div>
+  </div>
+</section>
 
-    <div class="fn-card lex" id="lex-prefijo">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_prefijo_canonico(nombre)</span>
-        <span class="fn-brief">Extrae el prefijo canónico de un nombre completo de dispositivo</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <div class="fn-sig">"aire_acondicionado"   → "aire_"
-"foco_salon"           → "foco_"
-"sensor_temp_exterior" → "sensor_temp"</div>
-      </div>
+<!-- ══ FUNCIONES DE RECONOCIMIENTO ══ -->
+<section class="section" id="leer-comentario">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Funciones de reconocimiento — nuevas en v3</h2></div>
+  <p>Todas siguen el mismo contrato: reciben <code>(linea, pos)</code> y retornan <code>(valor_str, nuevo_pos)</code> si hay coincidencia, o <code>None</code> si no. Este contrato uniforme permite que <code>_siguiente_token()</code> las pruebe en cascada de forma limpia.</p>
+
+  <div class="fc lx new">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_comentario(linea, pos)</span>
+      <span class="fb2">Reconoce // hasta el fin de la línea</span>
+      <span class="ft">›</span>
     </div>
-
-    <div class="fn-card lex" id="lex-actualizar-ctx">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_actualizar_ctx(tok)</span>
-        <span class="fn-brief">Autómata de contexto dispositivo → atributo</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Mantiene las variables <code>_ctx_prefijo</code> y <code>_ctx_attr_tipo</code> actualizadas para que <code>_validar_rango()</code> sepa en qué contexto se encuentra el próximo literal.</p>
-        <div class="fn-sig">SENSOR | ACTUADOR  → guardar prefijo canónico, limpiar atributo
-ATTR_*             → guardar tipo de atributo
-ATTR_GENERICO      → limpiar atributo (sin rango definido)
-WHEN|IF|DO|END|…   → reset completo del contexto</div>
-      </div>
+    <div class="fb">
+      <p class="fd">Verifica si los dos caracteres en <code>pos</code> y <code>pos+1</code> son ambas barras <code>/</code>. Si es así, retorna el resto completo de la línea como valor y la posición final como nuevo_pos, indicando que no hay más tokens en esta línea.</p>
+      <div class="fs">linea[pos] == '/' and linea[pos+1] == '/'
+→ retorna (linea[pos:], len(linea))</div>
     </div>
+  </div>
 
-    <div class="fn-card lex" id="lex-validar-rango">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_validar_rango(tok)</span>
-        <span class="fn-brief">Advertencias semánticas tempranas por valores fuera de rango</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Consulta <code>TABLA_RANGOS[(prefijo, attr_tipo)]</code>. Si existe una entrada, extrae el número del token con <code>_EXTRACTOR</code> y lo compara con el rango. Emite una advertencia si está fuera. Solo actúa sobre tokens <code>TEMPERATURA</code>, <code>PORCENTAJE</code> e <code>ILUMINANCIA</code>.</p>
-        <div class="callout callout-warn"><strong>Nota teórica:</strong> la validación de rangos pertenece al análisis semántico. Se incluye en el lexer como <em>early semantic check</em> porque el contexto necesario ya está disponible en esa fase. Las advertencias no detienen el análisis.</div>
-      </div>
+  <div class="fc lx new">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_cadena(linea, pos)</span>
+      <span class="fb2">Reconoce texto entre comillas dobles "..."</span>
+      <span class="ft">›</span>
     </div>
-  </section>
-
-  <!-- ══════════ PARSER ══════════ -->
-
-  <section class="section" id="error-sint">
-    <div class="section-header"><span class="section-badge badge-par">Parser</span><h2>ErrorSintactico</h2></div>
-    <div class="fn-card par">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-class">exception</span>
-        <span class="fn-name">ErrorSintactico(Exception)</span>
-        <span class="fn-brief">Se lanza cuando la gramática no se cumple</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Excepción con dos datos: el mensaje descriptivo y el token que lo provocó. Al convertirse a cadena incluye línea, columna, mensaje y token. Es capturada en <code>parsear()</code> y <code>_cuerpo()</code> para implementar recuperación de pánico.</p>
-        <div class="fn-sig">str(e) → "Error sintactico | Linea   5, Col  12 | Se esperaba DO pero se encontro THEN (token: 'THEN' [THEN])"</div>
-      </div>
+    <div class="fb">
+      <p class="fd">Verifica que el primer carácter sea <code>"</code> y avanza buscando la comilla de cierre. Si encuentra <code>"</code> o el fin de línea antes de cerrar, determina si la cadena es válida o no. Una cadena sin comilla de cierre retorna <code>None</code> — el llamador generará un error léxico.</p>
+      <div class="fs">linea[pos] == '"'
+i = pos+1
+mientras linea[i] != '"' y linea[i] != '\n': i++
+si linea[i] == '"': retorna (linea[pos:i+1], i+1)
+si no: retorna None  ← comilla sin cerrar</div>
     </div>
-  </section>
+  </div>
 
-  <section class="section" id="conjuntos">
-    <div class="section-header"><span class="section-badge badge-par">Parser</span><h2>Conjuntos de lookahead</h2></div>
-    <div class="fn-card par">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-const">set</span>
-        <span class="fn-name">TIPOS_OP_CMP  /  TIPOS_ATTR  /  TIPOS_VALOR</span>
-        <span class="fn-brief">Sets de constantes TT usados en _es() y _consumir()</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Reemplazan los largos <code>if self._es(TT.OP_EQ, TT.OP_NEQ, TT.OP_GT, …)</code> por un único <code>self._consumir(*TIPOS_OP_CMP)</code>. Su uso con el operador <code>*</code> (unpacking) hace el código más legible y fácil de extender.</p>
-        <p class="fn-desc">También existe el diccionario auxiliar <code>_OP_TEXTO</code> que mapea cada tipo de operador a su símbolo legible (<code>TT.OP_GTE → ">="</code>), usado al construir el texto de los títulos de sección HTML.</p>
-      </div>
+  <div class="fc lx new">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_numero(linea, pos)</span>
+      <span class="fb2">Lee un número entero o decimal con signo negativo opcional</span>
+      <span class="ft">›</span>
     </div>
-  </section>
-
-  <section class="section" id="parserhtml">
-    <div class="section-header"><span class="section-badge badge-par">Parser</span><h2>clase ParserHTML</h2></div>
-    <p>Clase central del parser de una pasada. A diferencia del parser anterior que producía un AST, esta clase produce directamente el HTML final. Su buffer interno <code>self._out</code> acumula las líneas HTML a medida que el análisis avanza.</p>
-
-    <div class="fn-card par" id="par-cursor">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_actual()  /  _es(*tipos)</span>
-        <span class="fn-brief">Lookahead de 1 símbolo sin avanzar el cursor</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc"><code>_actual()</code> retorna el token en la posición actual. <code>_es(*tipos)</code> retorna <code>True</code> si ese token es de alguno de los tipos dados. Son la base del lookahead LL(1): permiten decidir qué regla aplicar sin consumir el token.</p>
-      </div>
+    <div class="fb">
+      <p class="fd">Función base compartida por <code>_leer_temperatura()</code>, <code>_leer_con_sufijo()</code> y los pasos 13-14 de <code>_siguiente_token()</code>. Reconoce: signo <code>-</code> opcional → dígitos enteros → punto decimal → dígitos decimales (los dos últimos también opcionales).</p>
+      <div class="fs">[-]  dígitos+  [. dígitos+]
+"-25.5" → ("-25.5", pos+5)
+"80"    → ("80",    pos+2)
+"abc"   → None</div>
+      <div class="nb"><strong>Importante:</strong> esta función solo lee el número, no el sufijo. El token ENTERO o FLOTANTE se determina en <code>_siguiente_token()</code> chequeando si el resultado contiene <code>'.'</code>.</div>
     </div>
+  </div>
 
-    <div class="fn-card par" id="par-consumir">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_consumir(*tipos)</span>
-        <span class="fn-brief">Verifica tipo, avanza y retorna el token — o lanza ErrorSintactico</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Operación central del parser. Si el token actual es de los tipos esperados avanza y lo retorna. Si no, lanza <code>ErrorSintactico</code> con mensaje detallado. Es la operación más frecuente del parser.</p>
-        <div class="fn-sig">self._consumir(TT.WHEN)       # consume WHEN o lanza error
-self._consumir(TT.TIEMPO)     # consume 30m, 1h, etc.
-self._consumir(*TIPOS_ATTR)   # consume cualquier ATTR_*</div>
-      </div>
+  <div class="fc lx new" id="extraer-numero">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_extraer_numero(s)</span>
+      <span class="fb2">Extrae el valor float del inicio de un string de token — reemplaza re.match</span>
+      <span class="ft">›</span>
     </div>
-
-    <div class="fn-card par" id="par-avanzar">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_avanzar()</span>
-        <span class="fn-brief">Avanza el cursor incondicionalmente y retorna el token</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Usado cuando el tipo ya fue verificado por <code>_es()</code> justo antes, por lo que repetir la validación sería redundante. Ejemplo típico: dentro de <code>if self._es(TT.ELSE): self._avanzar()</code>.</p>
-      </div>
+    <div class="fb">
+      <p class="fd">Usada por los helpers numéricos (<code>_num_temperatura</code>, <code>_num_porcentaje</code>, <code>_num_iluminancia</code>) para extraer el número de un token ya reconocido como <code>"25°C"</code>, <code>"80%"</code> o <code>"600lux"</code>. Avanza carácter a carácter leyendo signo, parte entera y parte decimal, y retorna el <code>float</code> correspondiente.</p>
+      <div class="goneb"><strong>Lo que reemplaza:</strong> en v2 esta operación se hacía con <code>re.match(r"(-?\d+(?:\.\d+)?)", s).group(1)</code>. En v3 la misma lógica se implementa con un índice <code>i</code> que avanza mientras encuentra dígitos.</div>
+      <div class="fs">"25°C"    → 25.0
+"-5.5°C"  → -5.5
+"80%"     → 80.0
+"600lux"  → 600.0</div>
     </div>
+  </div>
 
-    <div class="fn-card par" id="par-sincronizar">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_sincronizar(*tipos_seguimiento)</span>
-        <span class="fn-brief">Recuperación de pánico: descarta tokens hasta un punto seguro</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Estrategia de recuperación de errores. Descarta tokens hasta encontrar uno del conjunto de seguimiento, permitiendo continuar el análisis y reportar múltiples errores en una sola ejecución.</p>
-        <div class="callout callout-info"><strong>Panic mode recovery:</strong> la estrategia más simple de recuperación. Funciona bien para este lenguaje porque WHEN, EVERY, IF y END son delimitadores claros de instrucciones.</div>
-      </div>
+  <div class="fc lx new" id="leer-temperatura">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_temperatura(linea, pos)</span>
+      <span class="fb2">Reconoce  [-]número°C  o  [-]número°c</span>
+      <span class="ft">›</span>
     </div>
-
-    <div class="fn-card par" id="par-emit">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_emit(linea)</span>
-        <span class="fn-brief">Agrega una línea al buffer de salida HTML</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">El método más simple del parser: hace <code>self._out.append(linea)</code>. Es la única forma de producir salida HTML. Al final de <code>parsear()</code>, el buffer se une con <code>"\n".join(self._out)</code> para producir el HTML completo.</p>
-        <div class="note-box"><strong>¿Por qué un buffer en lugar de escribir directo al archivo?</strong> Usar un buffer en memoria permite retornar el HTML como string desde <code>parsear()</code>, lo que facilita el testing y el modo interactivo (donde se imprime en consola en lugar de guardar a disco).</div>
-      </div>
+    <div class="fb">
+      <p class="fd">Llama a <code>_leer_numero()</code> para obtener la parte numérica y luego verifica que le sigan exactamente los caracteres <code>°</code> (Unicode U+00B0) y <code>C</code> o <code>c</code>. Si alguno de los dos falta, retorna <code>None</code>.</p>
+      <div class="fs">"26°C"  → ("26°C",  pos+4)
+"-5°c"  → ("-5°c",  pos+4)
+"26°F"  → None   ← no es Celsius
+"26C"   → None   ← falta el símbolo °</div>
     </div>
+  </div>
 
-    <div class="fn-card par" id="par-html-sensor">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_html_sensor(nombre, op, valor, ind)</span>
-        <span class="fn-brief">Acción semántica: emite bloque verde de sensor</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Genera el bloque HTML del sensor según la consigna (borde verde 1px, padding 20px). Traduce el nombre técnico a legible usando <code>_LABEL_SENSOR</code>, agrega la unidad desde <code>_UNIDAD_SENSOR</code>, y formatea el operador con <code>_OP_TEXTO</code>.</p>
-        <div class="fn-sig">_html_sensor("sensor_temp", TT.OP_GT, "26°C", "    ")
-
-→ emite:
-    &lt;div style="border:1px solid green; padding:20px; margin:10px 0;"&gt;
-      &lt;h2&gt;Temperatura  > 26°C°C&lt;/h2&gt;
-    &lt;/div&gt;</div>
-      </div>
+  <div class="fc lx new" id="leer-con-sufijo">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_con_sufijo(linea, pos, sufijo)</span>
+      <span class="fb2">Lee número positivo seguido exactamente de un sufijo dado</span>
+      <span class="ft">›</span>
     </div>
+    <div class="fb">
+      <p class="fd">Función genérica para reconocer PORCENTAJE (<code>%</code>), ILUMINANCIA (<code>lux</code>) y las unidades de tiempo (<code>s</code>, <code>m</code>, <code>h</code>). No acepta números negativos. Verifica además que después del sufijo no haya más letras, para evitar que <code>5min</code> sea reconocido como <code>5m</code> + <code>in</code>.</p>
+      <div class="fs">_leer_con_sufijo(linea, pos, '%'):
+  "80%"   → ("80%",    pos+3)
+  "100%"  → ("100%",   pos+4)
+  "-5%"   → None  ← no acepta negativo
+  "5min"  → None  ← 'm' seguido de 'i' (más letras)
 
-    <div class="fn-card par" id="par-html-actuador">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_html_actuador(nombre, items, ind)</span>
-        <span class="fn-brief">Acción semántica: emite bloque gris completo de actuador</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Genera el bloque HTML completo del actuador según la consigna (borde gris 1px, padding 20px). Recibe la lista de strings <code>&lt;li&gt;</code> ya construidos y los emite todos de una vez dentro de un <code>&lt;ul&gt;</code>. Este método <strong>no sabe cuántos atributos hay</strong> ni cuándo llegaron — simplemente vuelca lo que <code>_cuerpo()</code> acumuló.</p>
-        <div class="fn-sig">_html_actuador("foco_entrada", ["&lt;li&gt;Estado: ON&lt;/li&gt;", "&lt;li&gt;Brillo: 80%&lt;/li&gt;"], "  ")
-
-→ emite:
-  &lt;div style="border:1px solid gray; padding:20px; margin:10px 0;"&gt;
-    &lt;h1&gt;foco_entrada&lt;/h1&gt;
-    &lt;ul&gt;
-      &lt;li&gt;Estado: ON&lt;/li&gt;
-      &lt;li&gt;Brillo: 80%&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/div&gt;</div>
-      </div>
+_leer_con_sufijo(linea, pos, 'lux'):
+  "600lux" → ("600lux", pos+6)</div>
     </div>
+  </div>
 
-    <div class="fn-card par" id="par-html-item">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_html_item(attr_nombre, valor_tipo, valor_raw)</span>
-        <span class="fn-brief">Construye el string &lt;li&gt; — NO lo emite todavía</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Maneja los tres casos del valor de un atributo y retorna el string <code>&lt;li&gt;</code> sin emitirlo. El llamador (<code>_asignacion()</code>) lo deposita en el acumulador.</p>
-        <div class="fn-sig">EMAIL   → &lt;li&gt;Email notif: &lt;a href="mailto:user@dom.ar"&gt;Contactar a user&lt;/a&gt;&lt;/li&gt;
-CADENA  → &lt;li&gt;Mensaje: texto sin comillas&lt;/li&gt;
-otros   → &lt;li&gt;Estado: ON&lt;/li&gt;</div>
-      </div>
+  <div class="fc lx new" id="leer-tiempo">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_tiempo(linea, pos)</span>
+      <span class="fb2">Reconoce número seguido de s, m o h</span>
+      <span class="ft">›</span>
     </div>
+    <div class="fb">
+      <p class="fd">Prueba las tres unidades de tiempo en orden llamando a <code>_leer_con_sufijo()</code> con cada una. Retorna el resultado del primero que coincida, o <code>None</code> si ninguno coincide.</p>
+      <div class="fs">para unidad en ('s', 'm', 'h'):
+    res = _leer_con_sufijo(linea, pos, unidad)
+    si res: retornar res
+retornar None
 
-    <div class="fn-card par key" id="par-volcar">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-key">★ clave</span>
-        <span class="fn-name">_volcar_actuadores(acumulador, ind)</span>
-        <span class="fn-brief">Vuelca todos los actuadores acumulados y limpia el dict</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Itera el <code>OrderedDict</code> y llama a <code>_html_actuador()</code> por cada entrada, luego limpia el dict con <code>.clear()</code>. Es el momento en que las asignaciones acumuladas se convierten en HTML real.</p>
-        <div class="key-box">
-          <strong>¿Por qué este método es clave?</strong><br>
-          Sin él, sería imposible agrupar múltiples asignaciones del mismo actuador en una sola pasada. El patrón es: las asignaciones <em>recuerdan</em> en lugar de <em>emitir</em>, y este método es el que finalmente convierte lo recordado en HTML. Se llama en dos momentos:<br>
-          1. Antes de entrar a un <code>IF</code> anidado (para que los actuadores aparezcan antes de la subsección)<br>
-          2. Al salir del bucle de <code>_cuerpo()</code> al encontrar <code>END</code> o <code>ELSE</code>
-        </div>
-        <div class="fn-sig">acum = {"foco_sala": ["&lt;li&gt;Estado: ON&lt;/li&gt;", "&lt;li&gt;Brillo: 80%&lt;/li&gt;"],
-        "aire_ac":   ["&lt;li&gt;Modo: FRIO&lt;/li&gt;"]}
-
-_volcar_actuadores(acum, "    ")
-
-→ emite bloque gris de foco_sala con 2 atributos
-→ emite bloque gris de aire_ac con 1 atributo
-→ acum queda vacío</div>
-      </div>
+"30m"  → ("30m", pos+3)
+"10s"  → ("10s", pos+3)
+"1h"   → ("1h",  pos+2)</div>
     </div>
+  </div>
 
-    <div class="fn-card par" id="par-parsear">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">parsear()</span>
-        <span class="fn-brief">Punto de entrada — emite cabecera, parsea programa, emite cierre</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Método público principal. Llama a <code>_emitir_cabecera()</code>, itera instrucciones hasta EOF con recuperación de pánico ante errores, llama a <code>_emitir_cierre()</code>, y retorna el HTML completo como string.</p>
-        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">str — documento HTML completo listo para guardar a disco</div></div>
-      </div>
+  <div class="fc lx new" id="leer-hora">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_hora(linea, pos)</span>
+      <span class="fb2">Reconoce HH:MM en formato 24 horas con validación de rango</span>
+      <span class="ft">›</span>
     </div>
+    <div class="fb">
+      <p class="fd">Lee exactamente 5 caracteres y verifica estructura <code>DD:DD</code>, valores HH en 0-23 y MM en 0-59. También verifica que el 6° carácter no sea un dígito (para no capturar <code>12:345</code> como <code>12:34</code>).</p>
+      <div class="fs">s = linea[pos:pos+5]          ← "22:00"
+s[2] == ':' and todos son dígitos
+hh = int(s[0:2])  → 0..23
+mm = int(s[3:5])  → 0..59
+linea[pos+5] no es dígito
 
-    <div class="fn-card par" id="par-cabecera">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_emitir_cabecera()  /  _emitir_cierre()</span>
-        <span class="fn-brief">Emiten el DOCTYPE, head, body de apertura y el cierre del documento</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc"><code>_emitir_cabecera()</code> genera todo el encabezado HTML: <code>&lt;!DOCTYPE html&gt;</code>, metadatos, título, bloque <code>&lt;style&gt;</code> con los estilos CSS, y el <code>&lt;h1&gt;</code> del dashboard. Se llama una única vez al inicio de <code>parsear()</code>.</p>
-        <p class="fn-desc"><code>_emitir_cierre()</code> genera simplemente <code>&lt;/body&gt;&lt;/html&gt;</code>. Se llama una única vez al final.</p>
-      </div>
+"22:00" → ("22:00", pos+5)
+"25:00" → None  ← hora inválida
+"12:60" → None  ← minutos inválidos</div>
     </div>
+  </div>
 
-    <div class="fn-card par" id="par-instruccion">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_instruccion(nivel)</span>
-        <span class="fn-brief">Despacha al método correcto según el lookahead</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Regla: <code>instruccion ::= bloque_when | bloque_every | condicional | asignacion_suelta</code>. Usa el token actual para decidir. El caso de asignación suelta en nivel raíz crea su propio <code>OrderedDict</code> local y lo vuelca inmediatamente.</p>
-        <div class="fn-sig">WHEN     → _bloque_when(nivel)
-EVERY    → _bloque_every(nivel)
-IF       → _condicional(nivel)
-ACTUADOR → acum={}; _asignacion(acum); _volcar_actuadores(acum)
-otro     → ErrorSintactico</div>
-      </div>
+  <div class="fc lx new" id="leer-fecha">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_fecha(linea, pos)</span>
+      <span class="fb2">Reconoce DD/MM/AAAA con validación de día, mes y año</span>
+      <span class="ft">›</span>
     </div>
+    <div class="fb">
+      <p class="fd">La función más larga de las de reconocimiento. Parsea las tres partes de la fecha en secuencia: día (1-2 dígitos, 1-31), barra, mes (1-2 dígitos, 1-12), barra, año (exactamente 4 dígitos, 1900-2099). Verifica después del año que no haya más dígitos.</p>
+      <div class="fs">Día:  1-31  (1 o 2 dígitos)  → '/'
+Mes:  1-12  (1 o 2 dígitos)  → '/'
+Año:  1900-2099 (exactamente 4 dígitos)
 
-    <div class="fn-card par" id="par-when">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_bloque_when(nivel)</span>
-        <span class="fn-brief">WHEN condicion DO cuerpo END — con acciones semánticas intercaladas</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Parsea la regla completa intercalando acciones semánticas de emisión HTML. La condición se parsea <strong>antes</strong> de emitir el <code>&lt;div&gt;</code> porque necesitamos el texto de la condición para el <code>&lt;h2&gt;</code> — <code>_condicion()</code> retorna ese texto sin emitir nada.</p>
-        <div class="fn-sig">consumir WHEN
-(texto, sensores) ← _condicion()         ← NO emite HTML
-consumir DO
-_emit(&lt;div seccion&gt;)                      ← acción semántica
-_emit(&lt;h2&gt;Cuando: {texto}&lt;/h2&gt;)           ← acción semántica
-para sensor en sensores: _html_sensor()   ← acción semántica
-_cuerpo(nivel+1)                          ← regla recursiva
-consumir END
-_emit(&lt;/div&gt;)                             ← acción semántica</div>
-      </div>
+"21/04/2026" → ("21/04/2026", pos+10)
+"31/13/2026" → None  ← mes 13 inválido
+"21/04/1800" → None  ← año fuera de rango</div>
+      <div class="nb"><strong>Sin validación día/mes cruzada:</strong> la consigna indica que no es necesario validar que el día sea coherente con el mes (ej. 31 de febrero se acepta). Solo se valida que el día esté en 1-31 y el mes en 1-12 independientemente.</div>
     </div>
+  </div>
 
-    <div class="fn-card par" id="par-every">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_bloque_every(nivel)</span>
-        <span class="fn-brief">EVERY TIEMPO DO cuerpo END</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Idéntico en estructura a <code>_bloque_when()</code> pero más simple: el "disparador" es el token TIEMPO directamente, sin necesidad de parsear una condición. El valor del tiempo se incluye en el <code>&lt;h2&gt;</code>.</p>
-      </div>
+  <div class="fc lx new" id="leer-email">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_email(linea, pos)</span>
+      <span class="fb2">Reconoce usuario@dominio.ext con extensión de 2-4 letras</span>
+      <span class="ft">›</span>
     </div>
+    <div class="fb">
+      <p class="fd">Parsea el email en tres etapas: nombre de usuario (al menos un char válido según <code>_es_email_char()</code>), el <code>@</code> obligatorio, y el dominio. Dentro del dominio busca el último punto usando <code>rfind('.')</code> y verifica que la extensión sea de 2 a 4 letras puras.</p>
+      <div class="fs">usuario:   chars válidos (_es_email_char) + al menos 1
+@:         obligatorio
+dominio:   chars válidos, con al menos un punto
+extensión: 2-4 letras (último segmento tras el último punto)
 
-    <div class="fn-card par key" id="par-cuerpo">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-key">★ clave</span>
-        <span class="fn-name">_cuerpo(nivel)</span>
-        <span class="fn-brief">Núcleo del agrupamiento en una pasada — mantiene el OrderedDict acumulador</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Este método es el corazón de la técnica de una sola pasada. La clave está en el <code>OrderedDict</code> local que vive solo durante la ejecución de este método:</p>
-        <div class="key-box">
-          <strong>El ciclo de vida del acumulador:</strong><br>
-          — Se crea vacío al inicio de <code>_cuerpo()</code><br>
-          — Cada <code>_asignacion()</code> deposita un <code>&lt;li&gt;</code> en <code>acum[nombre_actuador]</code><br>
-          — Si aparece un <code>IF</code>, primero se vuelcan los actuadores pendientes (para mantener el orden visual correcto) y luego se parsea el <code>IF</code><br>
-          — Al encontrar <code>END</code> o <code>ELSE</code>, se vuelcan todos los actuadores restantes<br>
-          — Al retornar, el acumulador se destruye automáticamente (es una variable local)
-        </div>
-        <div class="fn-sig">acum = OrderedDict()   # vive solo mientras dura este cuerpo
-
-mientras NO (END | ELSE | EOF):
-    si IF:
-        _volcar_actuadores(acum, ind)   ← vaciar antes del IF
-        _condicional(nivel)             ← parsear el IF (emite su propio HTML)
-    si ACTUADOR:
-        _asignacion(acum)               ← acumular, NO emitir
-    si otro:
-        ErrorSintactico + _sincronizar()
-
-# al salir del bucle:
-_volcar_actuadores(acum, ind)           ← emitir lo que quedó pendiente</div>
-        <div class="note-box"><strong>¿Por qué OrderedDict y no dict?</strong> En Python 3.7+ los <code>dict</code> ordinarios ya mantienen el orden de inserción, por lo que <code>OrderedDict</code> y <code>dict</code> se comportan igual. Se usa <code>OrderedDict</code> explícitamente para dejar claro en el código que el orden de aparición de los actuadores es intencional y debe preservarse en el HTML.</div>
-      </div>
+"user@dom.com"          → válido
+"f@s-h.com.ar"          → válido (extensión "ar")
+"user@dom"              → None  ← sin punto en dominio
+"user@dom.comx"         → None  ← extensión > 4 letras</div>
     </div>
+  </div>
 
-    <div class="fn-card par" id="par-condicional">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_condicional(nivel)</span>
-        <span class="fn-brief">IF condicion THEN cuerpo [ELSE cuerpo] END</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Parsea el bloque IF intercalando emisión HTML. El ELSE es opcional. El parámetro <code>nivel</code> determina si el título usa <code>&lt;h2&gt;</code> (nivel raíz) o <code>&lt;h3&gt;</code> (anidado dentro de WHEN/EVERY).</p>
-        <div class="fn-sig">consumir IF
-(texto, sensores) ← _condicion()
-consumir THEN
-tag = "h3" si nivel > 0 else "h2"
-_emit(&lt;div&gt; + &lt;{tag}&gt;Si: {texto}&lt;/{tag}&gt;)
-para sensor: _html_sensor()
-_cuerpo(nivel+1)                    ← crea su propio acum interno
-si ELSE:
-    _emit(&lt;/div&gt;)
-    _emit(&lt;div&gt; + &lt;{tag}&gt;En caso contrario&lt;/{tag}&gt;)
-    _cuerpo(nivel+1)                ← nuevo acum para el cuerpo ELSE
-consumir END
-_emit(&lt;/div&gt;)</div>
-      </div>
+  <div class="fc lx new" id="leer-identificador">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kn">nueva</span>
+      <span class="fn">_leer_identificador(linea, pos)</span>
+      <span class="fb2">Reconoce nombre: letra o _ seguido de letras, dígitos o _</span>
+      <span class="ft">›</span>
     </div>
+    <div class="fb">
+      <p class="fd">Verifica que el primer carácter sea letra o guion bajo y luego avanza mientras los caracteres siguientes sean alfanuméricos o guion bajo, usando <code>_es_alfanum_o_guion()</code>. El resultado se pasa a <code>_clasificar()</code> para determinar si es reservada, sensor, actuador, atributo o identificador genérico.</p>
+      <div class="fs">"WHEN"              → ("WHEN", pos+4)   → _clasificar → TT.WHEN
+"sensor_luz"        → ("sensor_luz", pos+10) → _clasificar → TT.SENSOR
+"foco_sala"         → ("foco_sala", pos+9)   → _clasificar → TT.ACTUADOR
+"brillo" (tras .)   → ("brillo", pos+6)      → _clasificar → TT.ATTR_BRILLO
+"mi_variable"       → ("mi_variable", ...)   → TT.IDENTIFICADOR</div>
+    </div>
+  </div>
+</section>
 
-    <div class="fn-card par" id="par-condicion">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_condicion()</span>
-        <span class="fn-brief">Encadena expresiones con AND/OR — retorna datos, NO emite</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Regla: <code>condicion ::= expr_cond ((AND|OR) expr_cond)*</code>. Acumula el texto legible y la lista de sensores mencionados a medida que parsea. El HTML <strong>no se emite aquí</strong>: el llamador recibe los datos y decide cuándo y dónde emitirlos (con la indentación correcta).</p>
-        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">(texto: str, sensores: list[tuple(nombre, op_tipo, valor)])</div></div>
-        <div class="note-box"><strong>¿Por qué no emitir aquí?</strong> Porque en el momento en que se parsea la condición, el método llamador aún no emitió el <code>&lt;div&gt;</code> contenedor. Si <code>_condicion()</code> emitiera el bloque del sensor, aparecería antes del <code>&lt;div&gt;</code> de sección, generando HTML inválido.</div>
-      </div>
+<!-- ══ HELPERS NUMÉRICOS ══ -->
+<section class="section" id="helpers-num">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Helpers numéricos para rangos — modificados en v3</h2></div>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_num_temperatura(v) / _num_porcentaje(v) / _num_iluminancia(v)</span>
+      <span class="fb2">Extraen el float de un token literal — ahora usan _extraer_numero()</span>
+      <span class="ft">›</span>
     </div>
+    <div class="fb">
+      <p class="fd">Tres funciones que actúan como envoltorios de <code>_extraer_numero()</code>, agrupadas en el diccionario <code>_EXTRACTOR</code> para que <code>_validar_rango()</code> las llame sin un bloque <code>if/elif</code>.</p>
+      <div class="goneb"><strong>Cambio v3:</strong> en v2 cada una usaba <code>re.match(r"(-?\d+(?:\.\d+)?)", v).group(1)</code>. En v3 simplemente delegan en <code>_extraer_numero(v)</code>, que implementa la misma lógica sin <code>re</code>.</div>
+      <div class="fs">v2:  return float(re.match(r"(-?\d+(?:\.\d+)?)", v).group(1))
+v3:  return _extraer_numero(v)</div>
+    </div>
+  </div>
+</section>
 
-    <div class="fn-card par" id="par-exprcond">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_expr_cond()</span>
-        <span class="fn-brief">Expresión simple: sensor op valor, actuador.attr op valor, o booleano</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Parsea una de cuatro formas posibles y retorna el texto legible + sensores encontrados. Cuando el lado izquierdo es un <code>SENSOR</code>, registra la tupla <code>(nombre, op_tipo, valor)</code> en la lista de sensores para que el llamador emita el bloque verde.</p>
-        <div class="fn-sig">NOT expr_cond                        → ("NOT {texto}", sensores)
-TRUE | FALSE | ON | OFF              → ("TRUE", [])
-SENSOR op valor                      → ("sensor_luz &lt; 250lux", [("sensor_luz", OP_LT, "250lux")])
-ACTUADOR PUNTO ATTR op valor         → ("aire_ac.estado == OFF", [])   ← sin bloque verde</div>
-      </div>
-    </div>
+<!-- ══ SmartHomeLexer ══ -->
+<section class="section" id="smarthomelexer">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>clase SmartHomeLexer</h2></div>
 
-    <div class="fn-card par key" id="par-asignacion">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-key">★ clave</span>
-        <span class="fn-name">_asignacion(acum)</span>
-        <span class="fn-brief">Acumula en el dict — NO emite HTML directamente</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Esta es la diferencia más importante respecto a un parser naïve de una pasada. En lugar de llamar a <code>_emit()</code>, construye el string <code>&lt;li&gt;</code> con <code>_html_item()</code> y lo deposita en <code>acum[nombre_actuador]</code>. Si el actuador ya existe en el dict, el <code>&lt;li&gt;</code> se agrega a su lista; si no, se crea una nueva entrada.</p>
-        <div class="key-box">
-          <strong>¿Por qué no emitir directamente?</strong><br>
-          Si <code>_asignacion()</code> emitiera HTML, el resultado de tres asignaciones consecutivas del mismo actuador sería tres bloques <code>&lt;div&gt;</code> separados. Con el acumulador, esas tres asignaciones producen un único <code>&lt;div&gt;</code> con tres <code>&lt;li&gt;</code>. Esta es la técnica que permite implementar el agrupamiento sin AST.
-        </div>
-        <div class="fn-sig">foco_sala.estado = ON    → acum["foco_sala"] = ["&lt;li&gt;Estado: ON&lt;/li&gt;"]
-foco_sala.brillo = 80%   → acum["foco_sala"] = ["&lt;li&gt;Estado: ON&lt;/li&gt;", "&lt;li&gt;Brillo: 80%&lt;/li&gt;"]
-aire_ac.estado   = OFF   → acum["aire_ac"]   = ["&lt;li&gt;Estado: OFF&lt;/li&gt;"]</div>
-      </div>
+  <div class="fc lx" id="tokenizar">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">tokenizar(fuente, num_linea_base=1)</span>
+      <span class="fb2">API principal — sin cambios en v3</span>
+      <span class="ft">›</span>
     </div>
+    <div class="fb">
+      <p class="fd">Divide el texto en líneas y llama a <code>_procesar_linea()</code> por cada una. Reinicia <code>errores</code>, <code>advertencias</code> y el contexto al inicio. Agrega un token <code>EOF</code> al final. No cambió en v3.</p>
+      <div class="rb"><div class="rl">Retorna</div><div class="rv">List[Token] — todos los tokens sin blancos ni comentarios, más EOF</div></div>
+    </div>
+  </div>
 
-    <div class="fn-card par" id="par-valores">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-method">método</span>
-        <span class="fn-name">_valor_asig()  /  _valor_literal()</span>
-        <span class="fn-brief">Consumen el token del lado derecho de = o de una comparación</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc"><strong>_valor_asig()</strong>: acepta <code>TIPOS_VALOR</code> + <code>CADENA</code> + <code>EMAIL</code>. Usado en asignaciones donde el valor puede ser texto o correo.</p>
-        <p class="fn-desc"><strong>_valor_literal()</strong>: acepta solo <code>TIPOS_VALOR</code> (sin CADENA ni EMAIL). Usado en condiciones donde comparar con texto o email no tiene sentido semántico.</p>
-      </div>
+  <div class="fc lx" id="tokenizar-linea">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">tokenizar_linea(linea, num_linea=1)</span>
+      <span class="fb2">Modo interactivo — sin cambios en v3</span>
+      <span class="ft">›</span>
     </div>
-  </section>
+    <div class="fb">
+      <p class="fd">Variante para el modo interactivo. Procesa una sola línea sin reiniciar el contexto entre llamadas.</p>
+    </div>
+  </div>
 
-  <!-- compilar() -->
-  <section class="section" id="compilar">
-    <div class="section-header"><span class="section-badge badge-par">Parser</span><h2>función compilar()</h2></div>
-    <div class="fn-card par">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-func">func</span>
-        <span class="fn-name">compilar(fuente, nombre_archivo)</span>
-        <span class="fn-brief">Orquesta las 2 fases del pipeline simplificado</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Función de alto nivel que encadena el Lexer y el ParserHTML. A diferencia de la versión anterior que encadenaba 4 objetos (Lexer, Parser, Recolector, HtmlEmitter), esta solo instancia 2.</p>
-        <div class="fn-sig">fuente → SmartHomeLexer.tokenizar() → tokens
-tokens → ParserHTML.parsear()          → html</div>
-        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">(html_str, errores_lexicos, advertencias_lexico, errores_sintacticos)</div></div>
-        <div class="note-box"><strong>Separar compilar() de modo_archivo():</strong> permite usar la misma lógica de compilación desde el modo interactivo y desde tests automáticos sin duplicar código.</div>
-      </div>
+  <div class="fc lx" id="procesar-linea">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_procesar_linea(linea, num_linea, tokens)</span>
+      <span class="fb2">Bucle principal del lexer — modificado en v3</span>
+      <span class="ft">›</span>
     </div>
-  </section>
+    <div class="fb">
+      <p class="fd">Bucle que avanza posición a posición sobre la línea. En v2 llamaba a <code>_REGEX_MASTER.match(linea, pos)</code>; en v3 llama a <code>_siguiente_token(linea, pos, ...)</code>. La lógica alrededor (saltar blancos, manejar None, descartar comentarios, actualizar contexto) no cambió.</p>
+      <div class="newb"><strong>Cambio v3:</strong> <code>_REGEX_MASTER.match()</code> → <code>self._siguiente_token()</code>. El resto del método es idéntico.</div>
+    </div>
+  </div>
 
-  <!-- modos -->
-  <section class="section" id="modos">
-    <div class="section-header"><span class="section-badge badge-par">Parser</span><h2>modo_archivo()  /  modo_interactivo()</h2></div>
-    <div class="fn-card par">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-func">func</span>
-        <span class="fn-name">modo_archivo(ruta)  /  modo_interactivo()</span>
-        <span class="fn-brief">Interfaces de usuario del compilador</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc"><strong>modo_archivo(ruta)</strong>: valida existencia y extensión <code>.smart</code>, lee el fuente, llama a <code>compilar()</code>, imprime errores y advertencias en consola, escribe el HTML al archivo de salida (mismo nombre con extensión <code>.html</code>). Sale con código 2 si hay errores léxicos o sintácticos.</p>
-        <p class="fn-desc"><strong>modo_interactivo()</strong>: bucle que acumula líneas hasta que el usuario ingresa una línea en blanco, llama a <code>compilar()</code> y muestra el resultado en consola. Útil para probar fragmentos del lenguaje sin necesidad de un archivo.</p>
-      </div>
+  <div class="fc lx new key" id="siguiente-token">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kk">★ nueva</span>
+      <span class="fn">_siguiente_token(linea, pos, num_linea, col)</span>
+      <span class="fb2">Orquesta todas las funciones _leer_*() en orden de precedencia — reemplaza _REGEX_MASTER</span>
+      <span class="ft">›</span>
     </div>
-  </section>
+    <div class="fb">
+      <p class="fd">Método central del lexer v3. Intenta reconocer el próximo token probando cada tipo en orden de precedencia. Retorna <code>(tipo, valor, nuevo_pos)</code> al primer éxito, o <code>None</code> si ninguno coincide.</p>
+      <div class="kb"><strong>¿Por qué este orden?</strong> El orden importa para evitar ambigüedades. Por ejemplo: <code>250lux</code> debe ser ILUMINANCIA, no ENTERO+IDENTIFICADOR. <code>30m</code> debe ser TIEMPO, no ENTERO+IDENTIFICADOR. <code>user@dom.com</code> debe ser EMAIL, no IDENTIFICADOR. Los tipos más específicos van primero.</div>
+      <div class="fs">Orden de precedencia:
+  1.  _leer_comentario()         //...
+  2.  _leer_cadena()             "texto"
+  3.  _leer_email()              user@dom.ext
+  4.  _leer_temperatura()        25°C, -5°C
+  5.  _leer_con_sufijo('lux')    600lux
+  6.  _leer_con_sufijo('%')      80%
+  7.  _leer_tiempo()             30m, 10s, 1h
+  8.  _leer_fecha()              21/04/2026
+  9.  _leer_hora()               22:00
+  10. comparación de 2 chars     ==  !=  >=  <=
+  11. comparación de 1 char      >  <  =
+  12. punto                      .
+  13. _leer_numero() → FLOTANTE  3.14
+  14. _leer_numero() → ENTERO    42
+  15. _leer_identificador()      WHEN / sensor_luz / foco_ / brillo / nombre</div>
+    </div>
+  </div>
 
-  <!-- GUI -->
-  <section class="section" id="gui">
-    <div class="section-header"><span class="section-badge badge-par">Parser</span><h2>seleccionar_archivo_gui()  /  main()</h2></div>
-    <div class="fn-card par">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-func">func</span>
-        <span class="fn-name">seleccionar_archivo_gui()</span>
-        <span class="fn-brief">Abre el explorador de archivos nativo del sistema operativo</span>
-        <span class="fn-toggle">›</span>
-      </div>
-      <div class="fn-body">
-        <p class="fn-desc">Usa <code>tkinter.filedialog.askopenfilename()</code> filtrado por <code>*.smart</code>. Crea una ventana raíz oculta (necesaria para que filedialog funcione), la trae al frente con <code>lift() + focus_force()</code>, muestra el diálogo, y destruye la ventana al terminar. Si tkinter no está instalado, captura el <code>ImportError</code> y retorna <code>None</code>.</p>
-        <div class="ret-box"><div class="ret-label">Retorna</div><div class="ret-val">str — ruta absoluta al archivo seleccionado, o None si se canceló</div></div>
-      </div>
+  <div class="fc lx" id="clasificar">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_clasificar(palabra)</span>
+      <span class="fb2">Modificado en v3 — eliminado el lower() para palabras reservadas</span>
+      <span class="ft">›</span>
     </div>
-    <div class="fn-card par">
-      <div class="fn-header" onclick="toggle(this)">
-        <span class="fn-kind kind-func">func</span>
-        <span class="fn-name">main()</span>
-        <span class="fn-brief">Punto de entrada con tres modos de uso</span>
-        <span class="fn-toggle">›</span>
+    <div class="fb">
+      <p class="fd">Clasifica un identificador en su categoría. Mantiene 5 niveles de prioridad pero el primero cambió en v3.</p>
+      <div class="newb"><strong>Cambio v3:</strong>
+        En v2 se normalizaba <code>lower = palabra.lower()</code> y se consultaba con la clave en minúsculas.
+        En v3 la consulta es directa con la palabra tal como vino, porque las claves de <code>PALABRAS_RESERVADAS</code> están en MAYÚSCULAS. Escribir <code>when</code> falla la consulta → <code>IDENTIFICADOR</code>.
       </div>
-      <div class="fn-body">
-        <table class="param-table">
-          <thead><tr><th>Comando</th><th>Resultado</th></tr></thead>
-          <tbody>
-            <tr><td class="param-name">python parser_una_pasada.py</td><td class="param-desc">Abre el selector gráfico. Si se cancela, cae al modo interactivo.</td></tr>
-            <tr><td class="param-name">python parser_una_pasada.py archivo.smart</td><td class="param-desc">Ruta directa. Mismo comportamiento de siempre.</td></tr>
-            <tr><td class="param-name">python parser_una_pasada.py --interactivo</td><td class="param-desc">Fuerza el modo consola sin abrir ningún diálogo.</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <div class="fs">v2:  lower = palabra.lower()
+     if lower in PALABRAS_RESERVADAS:   ← "when" encontraba "when"
+         return PALABRAS_RESERVADAS[lower], palabra.upper()
+
+v3:  if palabra in PALABRAS_RESERVADAS: ← "when" NO encuentra nada
+         return PALABRAS_RESERVADAS[palabra], palabra
+     lower = palabra.lower()            ← solo para sensor/actuador/atributo</div>
+      <p class="fd">Los pasos 2-5 (sensores, actuadores, atributos, genérico) siguen usando <code>lower()</code> porque son nombres de dispositivos definidos por el usuario, no palabras del lenguaje.</p>
     </div>
-  </section>
+  </div>
+
+  <div class="fc lx" id="ctx">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_actualizar_ctx(tok) / _prefijo_canonico(nombre)</span>
+      <span class="fb2">Autómata de contexto dispositivo→atributo — sin cambios en v3</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd"><code>_prefijo_canonico()</code> extrae el prefijo canónico de un nombre completo (<code>"aire_acondicionado" → "aire_"</code>). <code>_actualizar_ctx()</code> actualiza las variables de estado <code>_ctx_prefijo</code> y <code>_ctx_attr_tipo</code> en función del tipo del token recién emitido, permitiendo que <code>_validar_rango()</code> sepa en qué contexto se encuentra el próximo literal.</p>
+    </div>
+  </div>
+
+  <div class="fc lx" id="rango">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_validar_rango(tok)</span>
+      <span class="fb2">Advertencias semánticas tempranas — sin cambios en v3</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Consulta <code>TABLA_RANGOS</code> con la clave <code>(prefijo_actual, attr_tipo_actual)</code>. Si existe una entrada, usa <code>_EXTRACTOR[tok.tipo](tok.valor)</code> para obtener el número y lo compara con el rango. Si está fuera, agrega una advertencia a <code>self.advertencias</code>. En v3 el extractor llama a <code>_extraer_numero()</code> en lugar de <code>re.match</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PARSER ══ -->
+<section class="section" id="parser-cambios">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>Cambios en el parser</h2></div>
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kc">general</span>
+      <span class="fn">parser_una_pasada.py — cambio mínimo en v3</span>
+      <span class="fb2">Solo se actualizó el import del lexer</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">El parser de una pasada no usa el módulo <code>re</code> en ninguna parte (nunca lo usó). El único cambio necesario fue actualizar la importación para que apunte al nuevo lexer:</p>
+      <div class="fs">v2:  from lexer import SmartHomeLexer, Token, TT
+v3:  from lexer_v3 import SmartHomeLexer, Token, TT</div>
+      <p class="fd">Toda la lógica del parser (<code>ParserHTML</code>, <code>ErrorSintactico</code>, <code>compilar()</code>, los modos de ejecución) permanece exactamente igual. Las palabras reservadas case-sensitive afectan al parser de forma transparente: simplemente recibe tokens <code>WHEN</code>, <code>IF</code>, etc. del lexer como antes, y si el usuario escribe <code>when</code> en minúsculas, recibirá un token <code>IDENTIFICADOR</code> que causará un error sintáctico.</p>
+      <div class="newb"><strong>Efecto en cascada:</strong> el cambio de case-sensitivity en el lexer se propaga automáticamente al parser sin tocar su código. Si el lexer emite <code>IDENTIFICADOR</code> donde el parser esperaba <code>WHEN</code>, el método <code>_consumir(TT.WHEN)</code> lanzará <code>ErrorSintactico</code> con el mensaje correspondiente.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="parserhtml">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>clase ParserHTML — sin cambios internos</h2></div>
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kc">class</span>
+      <span class="fn">ParserHTML</span>
+      <span class="fb2">Parser LL(1) de traducción directa — idéntico al v2</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Parser descendente recursivo que genera HTML durante el análisis sintáctico sin construir AST. Mantiene un <code>OrderedDict</code> local en cada llamada a <code>_cuerpo()</code> para acumular las asignaciones por actuador y volcarlas al llegar al <code>END</code> o <code>ELSE</code>.</p>
+      <p class="fd">Los métodos internos y su rol no cambiaron:</p>
+      <table class="pt"><thead><tr><th>Método</th><th>Rol</th></tr></thead><tbody>
+        <tr><td class="pn">parsear()</td><td class="pd">Punto de entrada. Emite cabecera HTML, itera instrucciones, emite cierre.</td></tr>
+        <tr><td class="pn">_instruccion(nivel)</td><td class="pd">Despacha a WHEN / EVERY / IF / asignación suelta según lookahead.</td></tr>
+        <tr><td class="pn">_bloque_when(nivel)</td><td class="pd">WHEN cond DO cuerpo END con acciones semánticas de emisión HTML.</td></tr>
+        <tr><td class="pn">_bloque_every(nivel)</td><td class="pd">EVERY tiempo DO cuerpo END.</td></tr>
+        <tr><td class="pn">_cuerpo(nivel)</td><td class="pd">★ Mantiene el OrderedDict acumulador y lo vuelca al final.</td></tr>
+        <tr><td class="pn">_condicional(nivel)</td><td class="pd">IF cond THEN cuerpo [ELSE cuerpo] END.</td></tr>
+        <tr><td class="pn">_condicion()</td><td class="pd">Encadena expr_cond con AND/OR. Retorna texto y sensores, NO emite.</td></tr>
+        <tr><td class="pn">_expr_cond()</td><td class="pd">Expresión simple: sensor op valor / actuador.attr op valor / booleano.</td></tr>
+        <tr><td class="pn">_asignacion(acum)</td><td class="pd">★ Acumula en el dict, NO emite HTML directamente.</td></tr>
+        <tr><td class="pn">_volcar_actuadores(acum, ind)</td><td class="pd">★ Emite los bloques &lt;div gray&gt; de todos los actuadores acumulados.</td></tr>
+        <tr><td class="pn">_html_sensor/actuador/item()</td><td class="pd">Generan los strings HTML de cada elemento según la consigna.</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="compilar">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>compilar() — sin cambios</h2></div>
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kf">func</span>
+      <span class="fn">compilar(fuente, nombre_archivo)</span>
+      <span class="fb2">Orquesta Lexer + ParserHTML en 2 fases</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Instancia <code>SmartHomeLexer</code> y <code>ParserHTML</code>, encadena sus salidas y retorna el HTML junto con los errores y advertencias de cada fase.</p>
+      <div class="rb"><div class="rl">Retorna</div><div class="rv">(html_str, errores_lexicos, advertencias_lexico, errores_sintacticos)</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="gui">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>seleccionar_archivo_gui() / main()</h2></div>
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kf">func</span>
+      <span class="fn">seleccionar_archivo_gui()</span>
+      <span class="fb2">Selector gráfico de archivos con tkinter — sin cambios</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Abre el explorador de archivos nativo del sistema operativo filtrado por <code>*.smart</code>. Crea una ventana raíz oculta de tkinter (necesaria para que <code>filedialog</code> funcione), la trae al frente con <code>lift() + focus_force()</code> y la destruye al terminar. Si tkinter no está disponible, captura el <code>ImportError</code> y retorna <code>None</code>.</p>
+    </div>
+  </div>
+  <div class="fc pr" id="main">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kf">func</span>
+      <span class="fn">main()</span>
+      <span class="fb2">Punto de entrada con tres modos de uso — sin cambios</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <table class="pt"><thead><tr><th>Comando</th><th>Comportamiento</th></tr></thead><tbody>
+        <tr><td class="pn">python parser_una_pasada.py</td><td class="pd">Abre selector gráfico. Si se cancela, cae a modo interactivo.</td></tr>
+        <tr><td class="pn">python parser_una_pasada.py archivo.smart</td><td class="pd">Procesa directamente la ruta indicada.</td></tr>
+        <tr><td class="pn">python parser_una_pasada.py --interactivo</td><td class="pd">Fuerza el modo consola sin GUI.</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
 
 </main>
 
 <script>
-  function toggle(header) {
-    header.closest('.fn-card').classList.toggle('open');
-  }
-  const sections = document.querySelectorAll('.section');
-  const navItems = document.querySelectorAll('.nav-item');
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(e => {
+  function toggle(h) { h.closest('.fc').classList.toggle('open'); }
+  const secs = document.querySelectorAll('.section');
+  const nis  = document.querySelectorAll('.ni');
+  new IntersectionObserver(es => {
+    es.forEach(e => {
       if (e.isIntersecting) {
-        navItems.forEach(n => n.classList.remove('active'));
-        const link = document.querySelector(`.nav-item[href="#${e.target.id}"]`);
-        if (link) link.classList.add('active');
+        nis.forEach(n => n.classList.remove('active'));
+        const l = document.querySelector(`.ni[href="#${e.target.id}"]`);
+        if (l) l.classList.add('active');
       }
     });
-  }, { rootMargin: '-30% 0px -60% 0px' });
-  sections.forEach(s => observer.observe(s));
+  }, { rootMargin: '-30% 0px -60% 0px' }).observe;
+  secs.forEach(s => new IntersectionObserver(es => {
+    es.forEach(e => {
+      if (e.isIntersecting) {
+        nis.forEach(n => n.classList.remove('active'));
+        const l = document.querySelector(`.ni[href="#${e.target.id}"]`);
+        if (l) l.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' }).observe(s));
 </script>
 </body>
 </html>
