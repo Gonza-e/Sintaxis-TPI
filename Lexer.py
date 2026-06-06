@@ -1,25 +1,3 @@
-"""
-╔══════════════════════════════════════════════════════════════════╗
-║   SMART-HOME Lexer  v3.0  —  Sintaxis y Semántica de Lenguajes  ║
-║   UTN Facultad Regional Resistencia  |  Ciclo 2026              ║
-╚══════════════════════════════════════════════════════════════════╝
-
-Implementación manual SIN el módulo `re`.
-Todo el análisis léxico se realiza con índices, comparaciones de
-caracteres y funciones auxiliares puras de Python.
-
-Cambios respecto a v2:
-  • Se eliminó completamente el módulo `re`.
-  • Las palabras reservadas (WHEN, IF, THEN, ELSE, DO, END, EVERY,
-    AND, OR, NOT, TRUE, FALSE, ON, OFF, FRIO, CALOR, VENT, BLANCO,
-    ROJO, AZUL) SOLO se reconocen en MAYÚSCULAS.
-  • Sensores y actuadores siguen siendo case-insensitive porque son
-    nombres de dispositivos, no palabras del lenguaje.
-  • Los tokens compuestos (TEMPERATURA, PORCENTAJE, ILUMINANCIA,
-    TIEMPO, HORA, FECHA, EMAIL) se reconocen con funciones
-    específicas que avanzan carácter a carácter.
-"""
-
 import sys
 import os
 from dataclasses import dataclass
@@ -29,7 +7,6 @@ from typing import Optional
 # ======================================================================
 #  1. TIPOS DE TOKEN
 # ======================================================================
-
 class TT:
     # Palabras reservadas (solo MAYÚSCULAS)
     WHEN     = "WHEN"
@@ -205,7 +182,7 @@ TABLA_RANGOS: dict = {
 
 
 # ======================================================================
-#  5. FUNCIONES AUXILIARES DE CARACTERES  (reemplazan a `re`)
+#  5. FUNCIONES AUXILIARES DE CARACTERES 
 # ======================================================================
 
 def _es_letra(c: str) -> bool:
@@ -453,7 +430,7 @@ def _leer_identificador(linea: str, pos: int) -> Optional[tuple]:
 
 
 # ======================================================================
-#  7. HELPERS NUMÉRICOS PARA VALIDACIÓN DE RANGOS  (sin re)
+#  7. HELPERS NUMÉRICOS PARA VALIDACIÓN DE RANGOS 
 # ======================================================================
 
 def _num_temperatura(v: str) -> float:
