@@ -146,8 +146,33 @@
   </div>
   <div class="ng"><div class="nl pr">Parser — parser_una_pasada.py</div>
     <a class="ni pr" href="#parser-cambios">Cambios en el parser</a>
+    <a class="ni pr" href="#gramatica">Gramática con acciones</a>
+    <a class="ni pr" href="#constantes-parser">Constantes y tablas</a>
+    <a class="ni pr" href="#error-sint">ErrorSintactico</a>
     <a class="ni pr" href="#parserhtml">clase ParserHTML</a>
+    <a class="ni pr" href="#par-cursor">  _actual() / _es()</a>
+    <a class="ni pr" href="#par-consumir">  _consumir()</a>
+    <a class="ni pr" href="#par-avanzar">  _avanzar()</a>
+    <a class="ni pr" href="#par-sincronizar">  _sincronizar()</a>
+    <a class="ni pr" href="#par-emit">  _emit()</a>
+    <a class="ni pr" href="#par-html-sensor">  _html_sensor()</a>
+    <a class="ni pr" href="#par-html-actuador">  _html_actuador()</a>
+    <a class="ni pr" href="#par-html-item">  _html_item()</a>
+    <a class="ni pr" href="#par-volcar">  ★ _volcar_actuadores()</a>
+    <a class="ni pr" href="#par-parsear">  parsear()</a>
+    <a class="ni pr" href="#par-cabecera">  _emitir_cabecera/cierre()</a>
+    <a class="ni pr" href="#par-instruccion">  _instruccion()</a>
+    <a class="ni pr" href="#par-when">  _bloque_when()</a>
+    <a class="ni pr" href="#par-every">  _bloque_every()</a>
+    <a class="ni pr" href="#par-cuerpo">  ★ _cuerpo()</a>
+    <a class="ni pr" href="#par-condicional">  _condicional()</a>
+    <a class="ni pr" href="#par-condicion">  _condicion()</a>
+    <a class="ni pr" href="#par-exprcond">  _expr_cond()</a>
+    <a class="ni pr" href="#par-asignacion">  ★ _asignacion()</a>
+    <a class="ni pr" href="#par-valores">  _valor_asig() / _valor_literal()</a>
     <a class="ni pr" href="#compilar">compilar()</a>
+    <a class="ni pr" href="#modo-archivo">modo_archivo()</a>
+    <a class="ni pr" href="#modo-interactivo">modo_interactivo()</a>
     <a class="ni pr" href="#gui">seleccionar_archivo_gui()</a>
     <a class="ni pr" href="#main">main()</a>
   </div>
@@ -804,95 +829,649 @@ v3:  if palabra in PALABRAS_RESERVADAS: ← "when" NO encuentra nada
 </section>
 
 <!-- ══ PARSER ══ -->
+<!-- ══ CAMBIOS EN EL PARSER ══ -->
 <section class="section" id="parser-cambios">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>Cambios en el parser</h2></div>
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>Cambios en el parser v3</h2></div>
   <div class="fc pr">
     <div class="fh2" onclick="toggle(this)">
       <span class="fk kc">general</span>
-      <span class="fn">parser_una_pasada.py — cambio mínimo en v3</span>
+      <span class="fn">parser_una_pasada.py — único cambio en v3</span>
       <span class="fb2">Solo se actualizó el import del lexer</span>
       <span class="ft">›</span>
     </div>
     <div class="fb">
-      <p class="fd">El parser de una pasada no usa el módulo <code>re</code> en ninguna parte (nunca lo usó). El único cambio necesario fue actualizar la importación para que apunte al nuevo lexer:</p>
-      <div class="fs">v2:  from lexer import SmartHomeLexer, Token, TT
+      <p class="fd">El parser nunca usó el módulo <code>re</code>, por lo que no requirió cambios de lógica. El único ajuste fue actualizar la importación:</p>
+      <div class="fs">v2:  from lexer   import SmartHomeLexer, Token, TT
 v3:  from lexer_v3 import SmartHomeLexer, Token, TT</div>
-      <p class="fd">Toda la lógica del parser (<code>ParserHTML</code>, <code>ErrorSintactico</code>, <code>compilar()</code>, los modos de ejecución) permanece exactamente igual. Las palabras reservadas case-sensitive afectan al parser de forma transparente: simplemente recibe tokens <code>WHEN</code>, <code>IF</code>, etc. del lexer como antes, y si el usuario escribe <code>when</code> en minúsculas, recibirá un token <code>IDENTIFICADOR</code> que causará un error sintáctico.</p>
-      <div class="newb"><strong>Efecto en cascada:</strong> el cambio de case-sensitivity en el lexer se propaga automáticamente al parser sin tocar su código. Si el lexer emite <code>IDENTIFICADOR</code> donde el parser esperaba <code>WHEN</code>, el método <code>_consumir(TT.WHEN)</code> lanzará <code>ErrorSintactico</code> con el mensaje correspondiente.</div>
+      <div class="newb"><strong>Efecto en cascada:</strong> el cambio de case-sensitivity opera de forma transparente. Si el usuario escribe <code>when</code>, el lexer emite <code>IDENTIFICADOR</code>; cuando el parser ejecuta <code>_consumir(TT.WHEN)</code>, lanza <code>ErrorSintactico</code> automáticamente sin que el parser necesite saber nada sobre mayúsculas.</div>
     </div>
   </div>
 </section>
 
-<section class="section" id="parserhtml">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>clase ParserHTML — sin cambios internos</h2></div>
+<!-- ══ GRAMÁTICA ══ -->
+<section class="section" id="gramatica">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>Gramática con acciones semánticas</h2></div>
+  <p>Las llaves <code>{ … }</code> indican acciones semánticas: código Python que se ejecuta en el momento en que esa parte de la regla gramatical es reconocida. Esta notación es estándar en la teoría de compiladores (esquemas de traducción dirigidos por la sintaxis).</p>
+  <div class="flow"><span class="h2">programa</span>    ::= { instruccion }+  EOF
+                <span class="h3">{ _emitir_cabecera() }</span>                     <span class="h3">{ _emitir_cierre() }</span>
+
+<span class="h2">instruccion</span> ::= bloque_when | bloque_every | condicional | asignacion_suelta
+
+<span class="h2">bloque_when</span> ::= WHEN condicion DO
+                <span class="h3">{ _emit(&lt;div seccion&gt;) + _emit(&lt;h2&gt;Cuando:…&lt;/h2&gt;) }</span>
+                <span class="h3">{ para cada sensor: _html_sensor() }</span>
+                cuerpo
+                END
+                <span class="h3">{ _emit(&lt;/div&gt;) }</span>
+
+<span class="h2">bloque_every</span>::= EVERY TIEMPO DO
+                <span class="h3">{ _emit(&lt;div seccion&gt;) + _emit(&lt;h2&gt;Cada: TIEMPO&lt;/h2&gt;) }</span>
+                cuerpo
+                END
+                <span class="h3">{ _emit(&lt;/div&gt;) }</span>
+
+<span class="h2">cuerpo</span>      ::= accion+
+                <span class="h3">{ mantiene OrderedDict  { actuador: [&lt;li&gt;…] } }</span>
+                <span class="h3">{ al llegar a END/ELSE: _volcar_actuadores() }</span>
+
+<span class="h2">accion</span>      ::= asignacion | condicional
+
+<span class="h2">condicional</span> ::= IF condicion THEN
+                <span class="h3">{ _emit(&lt;div seccion&gt;) + _emit(&lt;h3&gt;Si:…&lt;/h3&gt;) }</span>
+                <span class="h3">{ para cada sensor: _html_sensor() }</span>
+                cuerpo
+                [ ELSE
+                  <span class="h3">{ _emit(&lt;/div&gt;) + _emit(&lt;div&gt;) + _emit(&lt;h3&gt;En caso contrario&lt;/h3&gt;) }</span>
+                  cuerpo ]
+                END
+                <span class="h3">{ _emit(&lt;/div&gt;) }</span>
+
+<span class="h2">asignacion</span>  ::= ACTUADOR PUNTO ATTR OP_ASIG valor_asig
+                <span class="h3">{ acum[actuador].append(_html_item())  ← NO emite todavía }</span>
+
+<span class="h2">condicion</span>   ::= expr_cond ( (AND|OR) expr_cond )*
+                <span class="h3">{ retorna (texto_legible, sensores)  ← NO emite HTML }</span>
+
+<span class="h2">expr_cond</span>   ::= NOT expr_cond
+               | TRUE | FALSE | ON | OFF
+               | SENSOR  op_cmp  valor_literal
+               | ACTUADOR PUNTO ATTR  op_cmp  valor_literal</div>
+</section>
+
+<!-- ══ CONSTANTES DEL PARSER ══ -->
+<section class="section" id="constantes-parser">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>Constantes y tablas del parser</h2></div>
+
   <div class="fc pr">
     <div class="fh2" onclick="toggle(this)">
-      <span class="fk kc">class</span>
-      <span class="fn">ParserHTML</span>
-      <span class="fb2">Parser LL(1) de traducción directa — idéntico al v2</span>
+      <span class="fk kd">set</span>
+      <span class="fn">TIPOS_OP_CMP  /  TIPOS_ATTR  /  TIPOS_VALOR</span>
+      <span class="fb2">Sets de constantes TT para lookahead en _es() y _consumir()</span>
       <span class="ft">›</span>
     </div>
     <div class="fb">
-      <p class="fd">Parser descendente recursivo que genera HTML durante el análisis sintáctico sin construir AST. Mantiene un <code>OrderedDict</code> local en cada llamada a <code>_cuerpo()</code> para acumular las asignaciones por actuador y volcarlas al llegar al <code>END</code> o <code>ELSE</code>.</p>
-      <p class="fd">Los métodos internos y su rol no cambiaron:</p>
-      <table class="pt"><thead><tr><th>Método</th><th>Rol</th></tr></thead><tbody>
-        <tr><td class="pn">parsear()</td><td class="pd">Punto de entrada. Emite cabecera HTML, itera instrucciones, emite cierre.</td></tr>
-        <tr><td class="pn">_instruccion(nivel)</td><td class="pd">Despacha a WHEN / EVERY / IF / asignación suelta según lookahead.</td></tr>
-        <tr><td class="pn">_bloque_when(nivel)</td><td class="pd">WHEN cond DO cuerpo END con acciones semánticas de emisión HTML.</td></tr>
-        <tr><td class="pn">_bloque_every(nivel)</td><td class="pd">EVERY tiempo DO cuerpo END.</td></tr>
-        <tr><td class="pn">_cuerpo(nivel)</td><td class="pd">★ Mantiene el OrderedDict acumulador y lo vuelca al final.</td></tr>
-        <tr><td class="pn">_condicional(nivel)</td><td class="pd">IF cond THEN cuerpo [ELSE cuerpo] END.</td></tr>
-        <tr><td class="pn">_condicion()</td><td class="pd">Encadena expr_cond con AND/OR. Retorna texto y sensores, NO emite.</td></tr>
-        <tr><td class="pn">_expr_cond()</td><td class="pd">Expresión simple: sensor op valor / actuador.attr op valor / booleano.</td></tr>
-        <tr><td class="pn">_asignacion(acum)</td><td class="pd">★ Acumula en el dict, NO emite HTML directamente.</td></tr>
-        <tr><td class="pn">_volcar_actuadores(acum, ind)</td><td class="pd">★ Emite los bloques &lt;div gray&gt; de todos los actuadores acumulados.</td></tr>
-        <tr><td class="pn">_html_sensor/actuador/item()</td><td class="pd">Generan los strings HTML de cada elemento según la consigna.</td></tr>
-      </tbody></table>
+      <p class="fd"><strong>TIPOS_OP_CMP</strong>: agrupa los seis operadores de comparación (<code>==  !=  &gt;  &lt;  &gt;=  &lt;=</code>). Se usa con <code>_consumir(*TIPOS_OP_CMP)</code> para aceptar cualquiera de ellos en una regla, en lugar de listarlos uno por uno.</p>
+      <p class="fd"><strong>TIPOS_ATTR</strong>: todos los tokens <code>ATTR_*</code> posibles. Usado en <code>_asignacion()</code> y <code>_expr_cond()</code> para consumir cualquier atributo reconocido por el lexer.</p>
+      <p class="fd"><strong>TIPOS_VALOR</strong>: todos los tokens que pueden aparecer como valor (literales con unidad, booleanos, discretos, números, identificadores). Usado en <code>_valor_asig()</code> y <code>_valor_literal()</code>.</p>
+      <div class="fs">TIPOS_OP_CMP = { TT.OP_EQ, TT.OP_NEQ, TT.OP_GT, TT.OP_LT, TT.OP_GTE, TT.OP_LTE }
+
+TIPOS_ATTR   = { TT.ATTR_ESTADO, TT.ATTR_BRILLO, TT.ATTR_COLOR, TT.ATTR_MODO,
+                 TT.ATTR_TEMP_OBJ, TT.ATTR_TEMP_ACT, TT.ATTR_POSICION, ... }
+
+TIPOS_VALOR  = { TT.TEMPERATURA, TT.PORCENTAJE, TT.ON, TT.OFF, TT.TRUE,
+                 TT.FRIO, TT.CALOR, TT.ENTERO, TT.FLOTANTE, ... }</div>
+    </div>
+  </div>
+
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kd">dict</span>
+      <span class="fn">_OP_TEXTO  /  _LABEL_SENSOR  /  _UNIDAD_SENSOR</span>
+      <span class="fb2">Tablas de traducción para la generación HTML</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd"><strong>_OP_TEXTO</strong>: mapea cada tipo de operador TT a su símbolo legible. Usado al construir el texto del título de sección HTML (<code>TT.OP_GTE → ">="</code>).</p>
+      <p class="fd"><strong>_LABEL_SENSOR</strong>: mapea el nombre técnico del sensor (<code>"sensor_temp"</code>) a un label legible (<code>"Temperatura"</code>) para mostrar en el <code>&lt;h2&gt;</code> del bloque verde.</p>
+      <p class="fd"><strong>_UNIDAD_SENSOR</strong>: mapea el nombre del sensor a su unidad de medida (<code>"sensor_temp" → "°C"</code>) para incluirla en el texto del bloque HTML.</p>
+      <div class="fs">_OP_TEXTO      = { TT.OP_EQ: "==", TT.OP_GT: ">", TT.OP_GTE: ">=", ... }
+_LABEL_SENSOR  = { "sensor_temp": "Temperatura", "sensor_luz": "Iluminancia", ... }
+_UNIDAD_SENSOR = { "sensor_temp": "°C", "sensor_humedad": "%", "sensor_luz": "lux" }</div>
+    </div>
+  </div>
+
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kd">str const</span>
+      <span class="fn">_CSS_SENSOR  /  _CSS_ACTUADOR  /  _CSS_SECCION</span>
+      <span class="fb2">Estilos CSS inline definidos en la consigna (sección 5)</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Atributos de clase de <code>ParserHTML</code> que centralizan los estilos CSS requeridos por la consigna para no repetirlos en cada llamada de emisión.</p>
+      <div class="fs">_CSS_SENSOR   = "border:1px solid green; padding:20px; margin:10px 0;"
+_CSS_ACTUADOR = "border:1px solid gray;  padding:20px; margin:10px 0;"
+_CSS_SECCION  = "margin:20px 0; padding:12px 16px; border-left:3px solid #4a90d9; ..."</div>
     </div>
   </div>
 </section>
 
+<!-- ══ ErrorSintactico ══ -->
+<section class="section" id="error-sint">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>clase ErrorSintactico</h2></div>
+  <div class="fc pr open">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kd">exception</span>
+      <span class="fn">ErrorSintactico(Exception)</span>
+      <span class="fb2">Se lanza cuando la gramática no se cumple</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Excepción personalizada que extiende <code>Exception</code>. Transporta dos datos: el mensaje descriptivo del error y el token que lo provocó. Al convertirse a cadena con <code>str()</code> incluye línea, columna, mensaje y tipo/valor del token.</p>
+      <table class="pt"><thead><tr><th>Campo</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">mensaje</td><td class="pty">str</td><td class="pd">Descripción del error (ej. "Se esperaba DO pero se encontro THEN")</td></tr>
+        <tr><td class="pn">tok</td><td class="pty">Token</td><td class="pd">El token que estaba presente cuando se esperaba otro</td></tr>
+      </tbody></table>
+      <div class="fs">str(e) → "Error sintactico | Linea   5, Col  12 | Se esperaba DO pero se encontro THEN (token: 'THEN' [THEN])"</div>
+      <div class="nb"><strong>Recuperación:</strong> esta excepción es capturada en <code>parsear()</code> y en <code>_cuerpo()</code>. Al capturarla se llama a <code>_sincronizar()</code> para descartar tokens hasta un punto seguro, permitiendo continuar el análisis y reportar múltiples errores en una sola ejecución.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ParserHTML ══ -->
+<section class="section" id="parserhtml">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>clase ParserHTML</h2></div>
+  <p>Parser LL(1) descendente recursivo. Cada método corresponde a una regla de producción de la gramática. El HTML se genera durante el análisis sin construir ningún árbol intermedio.</p>
+
+  <div class="fc pr" id="par-cursor">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_actual()  /  _es(*tipos)</span>
+      <span class="fb2">Lookahead de 1 símbolo — inspecciona sin consumir</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd"><code>_actual()</code> retorna el token en <code>self._tokens[self._pos]</code> sin avanzar el cursor. <code>_es(*tipos)</code> retorna <code>True</code> si el tipo del token actual está en la lista de tipos dados. Son la base del lookahead LL(1): permiten decidir qué regla gramatical aplicar sin consumir ningún token.</p>
+      <div class="fs">if self._es(TT.WHEN):          # ¿el próximo es WHEN?
+    self._bloque_when(nivel)   # sí → aplicar esa regla
+
+if self._es(TT.END, TT.ELSE, TT.EOF):  # varios tipos a la vez
+    break</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-consumir">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_consumir(*tipos)</span>
+      <span class="fb2">Verifica tipo, avanza el cursor y retorna el token — o lanza ErrorSintactico</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Operación fundamental del parser. Si el token actual es de uno de los tipos esperados, avanza <code>self._pos</code> y retorna el token. Si no, construye un mensaje de error con los tipos esperados y lanza <code>ErrorSintactico</code>. Es el método más invocado del parser.</p>
+      <div class="fs">tok_when   = self._consumir(TT.WHEN)         # solo acepta WHEN
+tok_tiempo = self._consumir(TT.TIEMPO)       # solo acepta TIEMPO
+tok_attr   = self._consumir(*TIPOS_ATTR)     # acepta cualquier ATTR_*</div>
+      <div class="nb"><strong>Diferencia con _avanzar():</strong> <code>_consumir()</code> valida el tipo antes de avanzar. <code>_avanzar()</code> avanza incondicionalmente. Se usa <code>_avanzar()</code> solo donde el tipo ya fue verificado por <code>_es()</code> en la línea inmediata anterior.</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-avanzar">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_avanzar()</span>
+      <span class="fb2">Avanza el cursor incondicionalmente y retorna el token actual</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Usado donde el tipo ya fue verificado con <code>_es()</code>, haciendo redundante una segunda validación. Ejemplo típico:</p>
+      <div class="fs">if self._es(TT.ELSE):
+    self._avanzar()   # ← ya sabemos que es ELSE, no necesitamos _consumir
+
+if self._es(TT.AND, TT.OR):
+    op_logic = self._avanzar().valor.upper()  # capturar AND/OR sin revalidar</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-sincronizar">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_sincronizar(*tipos_seguimiento)</span>
+      <span class="fb2">Recuperación de pánico: descarta tokens hasta un punto seguro</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Implementa la estrategia de recuperación de errores <em>panic mode</em>. Descarta tokens uno por uno hasta encontrar alguno del conjunto de seguimiento, desde donde el análisis puede retomarse con coherencia. Permite reportar múltiples errores en una sola ejecución en lugar de abortar al primero.</p>
+      <div class="fs">// En parsear(): sincronizar al inicio de la siguiente instrucción
+self._sincronizar(TT.WHEN, TT.EVERY, TT.IF, TT.END, TT.EOF)
+
+// En _cuerpo(): sincronizar a la siguiente acción o al cierre del bloque
+self._sincronizar(TT.ACTUADOR, TT.IF, TT.END, TT.ELSE, TT.EOF)</div>
+      <div class="nb"><strong>Panic mode recovery:</strong> la más simple de las estrategias de recuperación. Funciona bien para este lenguaje porque los bloques WHEN, EVERY e IF tienen delimitadores claros (END), lo que permite encontrar puntos de re-sincronización de forma confiable.</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-emit">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_emit(linea)</span>
+      <span class="fb2">Agrega una línea al buffer de salida HTML</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">El método más simple del parser: hace <code>self._out.append(linea)</code>. Es la única puerta de salida para producir HTML. Al final de <code>parsear()</code>, el buffer completo se une con <code>"\n".join(self._out)</code>.</p>
+      <div class="nb"><strong>¿Por qué buffer y no escribir directamente al archivo?</strong> Usar una lista en memoria permite retornar el HTML como string desde <code>parsear()</code>. Esto facilita el testing unitario y el modo interactivo, donde se imprime en consola en lugar de escribir a disco. El archivo se escribe en <code>modo_archivo()</code>, no dentro del parser.</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-html-sensor">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_html_sensor(nombre, op, valor, ind)</span>
+      <span class="fb2">Acción semántica: emite bloque verde de sensor según la consigna</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Genera el bloque HTML de un sensor con <code>border:1px solid green; padding:20px</code> tal como indica la sección 5 de la consigna. Traduce el nombre técnico del sensor a label legible usando <code>_LABEL_SENSOR</code>, agrega la unidad desde <code>_UNIDAD_SENSOR</code>, y formatea el operador con <code>_OP_TEXTO</code>.</p>
+      <div class="fs">_html_sensor("sensor_temp", TT.OP_GT, "26°C", "    ")
+
+emite:
+    &lt;div style="border:1px solid green; padding:20px; margin:10px 0;"&gt;
+      &lt;h2&gt;Temperatura  > 26°C°C&lt;/h2&gt;
+    &lt;/div&gt;</div>
+      <div class="nb"><strong>¿Cuándo se llama?</strong> Justo después de emitir el <code>&lt;div&gt;</code> contenedor de la sección, en <code>_bloque_when()</code> y <code>_condicional()</code>. Los datos del sensor llegan de <code>_condicion()</code> que los recolecta sin emitir nada.</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-html-actuador">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_html_actuador(nombre, items, ind)</span>
+      <span class="fb2">Acción semántica: emite bloque gris completo de actuador</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Genera el bloque HTML del actuador con <code>border:1px solid gray; padding:20px</code>, el nombre en <code>&lt;h1&gt;</code> y los atributos como <code>&lt;ul&gt;&lt;li&gt;</code>, según la consigna. Recibe la lista de strings <code>&lt;li&gt;</code> ya construidos por <code>_html_item()</code> y los vuelca de una vez. Este método no sabe cuántos atributos hay ni cuándo llegaron — simplemente emite lo que <code>_cuerpo()</code> acumuló.</p>
+      <div class="fs">_html_actuador("foco_sala", ["&lt;li&gt;Estado: ON&lt;/li&gt;", "&lt;li&gt;Brillo: 80%&lt;/li&gt;"], "  ")
+
+emite:
+  &lt;div style="border:1px solid gray; padding:20px; margin:10px 0;"&gt;
+    &lt;h1&gt;foco_sala&lt;/h1&gt;
+    &lt;ul&gt;
+      &lt;li&gt;Estado: ON&lt;/li&gt;
+      &lt;li&gt;Brillo: 80%&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-html-item">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_html_item(attr_nombre, valor_tipo, valor_raw)</span>
+      <span class="fb2">Construye el string &lt;li&gt; — NO lo emite todavía</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Construye y <strong>retorna</strong> el string <code>&lt;li&gt;</code> sin llamar a <code>_emit()</code>. El llamador (<code>_asignacion()</code>) lo deposita en el acumulador. Maneja tres casos según el tipo del valor:</p>
+      <div class="fs">EMAIL   → &lt;li&gt;Email notif: &lt;a href="mailto:user@dom.ar"&gt;Contactar a user&lt;/a&gt;&lt;/li&gt;
+CADENA  → &lt;li&gt;Mensaje: texto sin comillas dobles&lt;/li&gt;
+otros   → &lt;li&gt;Estado: ON&lt;/li&gt;</div>
+      <p class="fd">Para EMAIL extrae el nombre de usuario con <code>valor_raw.split("@")[0]</code> y genera un link <code>mailto:</code> tal como especifica la consigna. Para CADENA elimina las comillas con <code>strip('"')</code>.</p>
+    </div>
+  </div>
+
+  <div class="fc pr key" id="par-volcar">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kk">★ clave</span>
+      <span class="fn">_volcar_actuadores(acumulador, ind)</span>
+      <span class="fb2">Convierte el dict acumulado en bloques HTML y lo limpia</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Itera el <code>OrderedDict</code> y llama a <code>_html_actuador()</code> por cada entrada, luego limpia el dict con <code>.clear()</code>. Es el momento exacto en que las asignaciones acumuladas se convierten en HTML real.</p>
+      <div class="kb"><strong>¿Por qué este método es clave?</strong> Sin él, sería imposible agrupar múltiples asignaciones del mismo actuador en una sola pasada. El patrón es: las asignaciones <em>recuerdan</em> en lugar de <em>emitir</em>, y este método es el que finalmente convierte lo recordado en HTML. Se llama en dos momentos precisos:
+1. Antes de entrar a un IF anidado → para que los actuadores aparezcan ANTES de la subsección
+2. Al salir del bucle de _cuerpo() → para vaciar lo que quedó pendiente al llegar a END o ELSE</div>
+      <div class="fs">acum = { "foco_sala": ["&lt;li&gt;Estado: ON&lt;/li&gt;", "&lt;li&gt;Brillo: 80%&lt;/li&gt;"],
+         "aire_ac":   ["&lt;li&gt;Modo: FRIO&lt;/li&gt;"] }
+
+_volcar_actuadores(acum, "    ")
+→ emite bloque gris de foco_sala con 2 ítems
+→ emite bloque gris de aire_ac con 1 ítem
+→ acum queda {}   (clear())</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-parsear">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">parsear()</span>
+      <span class="fb2">Punto de entrada público — orquesta el análisis completo</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Método público que inicia todo el proceso. Llama a <code>_emitir_cabecera()</code>, entra en un bucle que invoca <code>_instruccion()</code> hasta llegar a EOF con recuperación de pánico ante errores, y finaliza llamando a <code>_emitir_cierre()</code>. Retorna el HTML completo como string uniendo el buffer con <code>"\n".join(self._out)</code>.</p>
+      <div class="rb"><div class="rl">Retorna</div><div class="rv">str — documento HTML completo listo para escribir a disco</div></div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-cabecera">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_emitir_cabecera()  /  _emitir_cierre()</span>
+      <span class="fb2">Emiten el DOCTYPE, head, body de apertura y el cierre del documento</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd"><code>_emitir_cabecera()</code> genera el encabezado HTML completo: <code>&lt;!DOCTYPE html&gt;</code>, metadatos UTF-8, viewport, título con el nombre del archivo, bloque <code>&lt;style&gt;</code> con reglas CSS básicas, y el <code>&lt;h1&gt;</code> del dashboard. Se llama una única vez al inicio de <code>parsear()</code>.</p>
+      <p class="fd"><code>_emitir_cierre()</code> emite únicamente <code>&lt;/body&gt;&lt;/html&gt;</code>. Se llama una única vez al final.</p>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-instruccion">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_instruccion(nivel)</span>
+      <span class="fb2">Despacha al método correcto según el lookahead de 1 token</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Regla: <code>instruccion ::= bloque_when | bloque_every | condicional | asignacion_suelta</code>. Usa <code>_es()</code> para mirar el token actual y despachar al método correspondiente. Si el token no es ninguno de los esperados, lanza <code>ErrorSintactico</code>.</p>
+      <div class="fs">WHEN     → _bloque_when(nivel)
+EVERY    → _bloque_every(nivel)
+IF       → _condicional(nivel)
+ACTUADOR → acum=OrderedDict(); _asignacion(acum); _volcar_actuadores(acum, "  ")
+otro     → ErrorSintactico("Se esperaba WHEN, EVERY, IF o ACTUADOR")</div>
+      <p class="fd">El caso ACTUADOR crea su propio <code>OrderedDict</code> local para asignaciones sueltas a nivel raíz (sin bloque WHEN/EVERY que las contenga) y lo vuelca inmediatamente.</p>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-when">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_bloque_when(nivel)</span>
+      <span class="fb2">WHEN condicion DO cuerpo END con acciones semánticas intercaladas</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Implementa la regla <code>bloque_when</code> intercalando emisión HTML. La condición se parsea <strong>antes</strong> de emitir el <code>&lt;div&gt;</code> porque necesitamos el texto y la lista de sensores para el <code>&lt;h2&gt;</code> y los bloques verdes. <code>_condicion()</code> retorna esos datos sin emitir nada.</p>
+      <div class="fs">consumir WHEN
+(texto, sensores) ← _condicion()           ← NO emite, solo recolecta
+consumir DO
+_emit(&lt;div ...&gt;)                            ← abre sección
+_emit(&lt;h2&gt;Cuando: {texto}&lt;/h2&gt;)
+para cada sensor: _html_sensor(...)         ← bloque verde
+_cuerpo(nivel+1)                            ← acumula y vuelca actuadores
+consumir END
+_emit(&lt;/div&gt;)                              ← cierra sección</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-every">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_bloque_every(nivel)</span>
+      <span class="fb2">EVERY TIEMPO DO cuerpo END</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Idéntico en estructura a <code>_bloque_when()</code> pero más simple: el disparador es directamente el token TIEMPO (ej. <code>30m</code>), sin necesidad de parsear una condición. El valor del tiempo se incluye en el <code>&lt;h2&gt;</code> de la sección.</p>
+      <div class="fs">consumir EVERY
+tok_tiempo ← consumir(TT.TIEMPO)
+consumir DO
+_emit(&lt;div ...&gt;)
+_emit(&lt;h2&gt;Cada: {tok_tiempo.valor}&lt;/h2&gt;)
+_cuerpo(nivel+1)
+consumir END
+_emit(&lt;/div&gt;)</div>
+    </div>
+  </div>
+
+  <div class="fc pr key" id="par-cuerpo">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kk">★ clave</span>
+      <span class="fn">_cuerpo(nivel)</span>
+      <span class="fb2">Núcleo del agrupamiento en una pasada — mantiene el OrderedDict local</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">El método más importante del parser para entender la técnica de una sola pasada. La clave está en el <code>OrderedDict</code> local que vive solo durante la ejecución de este método:</p>
+      <div class="kb"><strong>Ciclo de vida del acumulador:</strong><br>
+1. Se crea vacío al entrar: <code>acum = OrderedDict()</code><br>
+2. Cada <code>_asignacion(acum)</code> deposita un <code>&lt;li&gt;</code> en <code>acum[nombre_actuador]</code><br>
+3. Si aparece un IF, primero se vuelcan los actuadores pendientes (orden visual correcto) y luego se parsea el IF<br>
+4. Al encontrar END o ELSE, se vuelcan todos los actuadores restantes<br>
+5. Al retornar, el dict se destruye automáticamente (variable local)</div>
+      <div class="fs">acum = OrderedDict()
+
+mientras NO (END | ELSE | EOF):
+    si IF:
+        _volcar_actuadores(acum, ind)   ← vaciar ANTES del IF
+        _condicional(nivel)
+    si ACTUADOR:
+        _asignacion(acum)               ← acumular, NO emitir
+    si otro:
+        ErrorSintactico + _sincronizar()
+
+_volcar_actuadores(acum, ind)           ← vaciar lo que queda</div>
+      <div class="nb"><strong>¿Por qué OrderedDict y no dict ordinario?</strong> En Python 3.7+ los <code>dict</code> ya mantienen orden de inserción, así que técnicamente ambos son equivalentes. Se usa <code>OrderedDict</code> explícitamente para comunicar que el orden de aparición de los actuadores es intencional y debe preservarse en el HTML.</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-condicional">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_condicional(nivel)</span>
+      <span class="fb2">IF condicion THEN cuerpo [ELSE cuerpo] END</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Parsea el bloque IF completo intercalando emisión HTML. El ELSE es opcional. El parámetro <code>nivel</code> determina el tag del título: <code>&lt;h2&gt;</code> si es nivel raíz (dentro de WHEN/EVERY), <code>&lt;h3&gt;</code> si está anidado dentro de otro IF.</p>
+      <div class="fs">consumir IF
+(texto, sensores) ← _condicion()
+consumir THEN
+tag = "h3" si nivel > 0 else "h2"
+_emit(&lt;div&gt; + &lt;{tag}&gt;Si: {texto}&lt;/{tag}&gt;)
+para cada sensor: _html_sensor()
+_cuerpo(nivel+1)               ← cuerpo THEN con su propio acum
+si ELSE:
+    _avanzar()
+    _emit(&lt;/div&gt;)             ← cierra div THEN
+    _emit(&lt;div&gt; + &lt;{tag}&gt;En caso contrario&lt;/{tag}&gt;)
+    _cuerpo(nivel+1)           ← cuerpo ELSE con su propio acum
+consumir END
+_emit(&lt;/div&gt;)                 ← cierra div THEN o ELSE</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-condicion">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_condicion()</span>
+      <span class="fb2">Encadena expr_cond con AND/OR — retorna datos, NO emite HTML</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Regla: <code>condicion ::= expr_cond ((AND|OR) expr_cond)*</code>. Parsea la primera expresión y luego mientras el token sea AND u OR, parsea otra y concatena el texto y las listas de sensores. El HTML no se emite aquí porque en el momento de parsear la condición aún no se abrió el <code>&lt;div&gt;</code> contenedor.</p>
+      <div class="rb"><div class="rl">Retorna</div><div class="rv">(texto: str, sensores: list[tuple(nombre, op_tipo, valor)])</div></div>
+      <div class="fs">"sensor_temp > 26°C AND alarma_casa.estado == OFF"
+→ texto   = "sensor_temp > 26°C AND alarma_casa.estado == OFF"
+→ sensores = [("sensor_temp", TT.OP_GT, "26°C")]
+   (los actuadores en condición NO se agregan a sensores)</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-exprcond">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_expr_cond()</span>
+      <span class="fb2">Expresión simple: sensor op valor, actuador.attr op valor, o booleano</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Parsea una de cuatro formas posibles y retorna <code>(texto, sensores)</code>. Cuando el lado izquierdo es un SENSOR registra la tupla <code>(nombre, op_tipo, valor)</code> en la lista de sensores para que el llamador emita el bloque verde. Los actuadores en condición no generan bloque verde.</p>
+      <div class="fs">NOT expr_cond                    → ("NOT {texto}", sensores heredados)
+TRUE | FALSE | ON | OFF          → ("TRUE", [])
+SENSOR op valor                  → ("sensor_luz &lt; 250lux", [("sensor_luz", OP_LT, "250lux")])
+ACTUADOR PUNTO ATTR op valor     → ("aire_ac.estado == OFF", [])  ← sin bloque verde</div>
+    </div>
+  </div>
+
+  <div class="fc pr key" id="par-asignacion">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kk">★ clave</span>
+      <span class="fn">_asignacion(acum)</span>
+      <span class="fb2">Acumula en el dict — NO emite HTML directamente</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Implementa la regla <code>asignacion ::= ACTUADOR PUNTO ATTR OP_ASIG valor_asig</code>. Consume los cinco tokens en orden, construye el string <code>&lt;li&gt;</code> con <code>_html_item()</code> y lo deposita en <code>acum[nombre_actuador]</code> sin llamar a <code>_emit()</code>.</p>
+      <div class="kb"><strong>¿Por qué no emitir directamente?</strong> Si <code>_asignacion()</code> emitiera HTML, tres asignaciones consecutivas del mismo actuador producirían tres <code>&lt;div&gt;</code> separados. Con el acumulador, esas tres asignaciones producen un único <code>&lt;div&gt;</code> con tres <code>&lt;li&gt;</code>. Este es el mecanismo que hace posible el agrupamiento sin AST.</div>
+      <div class="fs">foco_sala.estado = ON    → acum["foco_sala"] = ["&lt;li&gt;Estado: ON&lt;/li&gt;"]
+foco_sala.brillo = 80%   → acum["foco_sala"] = ["&lt;li&gt;Estado: ON&lt;/li&gt;", "&lt;li&gt;Brillo: 80%&lt;/li&gt;"]
+aire_ac.estado   = OFF   → acum["aire_ac"]   = ["&lt;li&gt;Estado: OFF&lt;/li&gt;"]</div>
+    </div>
+  </div>
+
+  <div class="fc pr" id="par-valores">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk km">método</span>
+      <span class="fn">_valor_asig()  /  _valor_literal()</span>
+      <span class="fb2">Consumen el token del lado derecho de = o de una comparación</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd"><strong>_valor_asig()</strong>: acepta todos los tokens de <code>TIPOS_VALOR</code> más <code>CADENA</code> y <code>EMAIL</code>. Usado en asignaciones donde el valor puede ser texto entre comillas o una dirección de correo.</p>
+      <p class="fd"><strong>_valor_literal()</strong>: acepta solo <code>TIPOS_VALOR</code> (sin CADENA ni EMAIL). Usado en condiciones donde comparar con texto o email con operadores <code>&gt;</code>, <code>&lt;</code>, <code>==</code> no tiene sentido semántico.</p>
+      <div class="fs">asignacion: altavoz.mensaje = "texto"     → _valor_asig() acepta CADENA
+asignacion: altavoz.email_notif = u@d.com → _valor_asig() acepta EMAIL
+condicion:  sensor_temp > 26°C            → _valor_literal() acepta TEMPERATURA
+condicion:  sensor_temp > "texto"         → ErrorSintactico  (CADENA no en TIPOS_VALOR)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ compilar ══ -->
 <section class="section" id="compilar">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>compilar() — sin cambios</h2></div>
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>función compilar()</h2></div>
   <div class="fc pr">
     <div class="fh2" onclick="toggle(this)">
       <span class="fk kf">func</span>
       <span class="fn">compilar(fuente, nombre_archivo)</span>
-      <span class="fb2">Orquesta Lexer + ParserHTML en 2 fases</span>
+      <span class="fb2">Orquesta el pipeline completo de 2 fases</span>
       <span class="ft">›</span>
     </div>
     <div class="fb">
-      <p class="fd">Instancia <code>SmartHomeLexer</code> y <code>ParserHTML</code>, encadena sus salidas y retorna el HTML junto con los errores y advertencias de cada fase.</p>
+      <p class="fd">Función de alto nivel que encadena <code>SmartHomeLexer</code> y <code>ParserHTML</code>. Instancia el lexer, tokeniza el fuente, instancia el parser con los tokens, ejecuta <code>parsear()</code> y retorna los cuatro resultados del proceso.</p>
+      <div class="fs">fuente → SmartHomeLexer.tokenizar() → tokens
+tokens → ParserHTML(tokens, titulo).parsear() → html</div>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">fuente</td><td class="pty">str</td><td class="pd">Texto completo del archivo .smart</td></tr>
+        <tr><td class="pn">nombre_archivo</td><td class="pty">str</td><td class="pd">Nombre base para el &lt;title&gt; y el &lt;h1&gt; del HTML generado</td></tr>
+      </tbody></table>
       <div class="rb"><div class="rl">Retorna</div><div class="rv">(html_str, errores_lexicos, advertencias_lexico, errores_sintacticos)</div></div>
+      <div class="nb"><strong>Separación compilar / modos:</strong> al aislar la lógica de compilación de la E/S, tanto <code>modo_archivo()</code> como <code>modo_interactivo()</code> pueden reutilizar exactamente el mismo pipeline sin duplicar código.</div>
     </div>
   </div>
 </section>
 
+<!-- ══ modo_archivo ══ -->
+<section class="section" id="modo-archivo">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>función modo_archivo()</h2></div>
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kf">func</span>
+      <span class="fn">modo_archivo(ruta_entrada)</span>
+      <span class="fb2">Lee un archivo .smart, compila y escribe el HTML resultante</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Maneja todo el flujo de E/S para la ejecución desde archivo. Realiza las siguientes operaciones en orden:</p>
+      <div class="fs">1. Verificar que el archivo existe           → sys.exit(1) si no
+2. Verificar extensión .smart               → sys.exit(1) si incorrecta
+3. Leer el fuente completo con open()
+4. Determinar ruta HTML de salida           → mismo nombre, extensión .html
+5. Llamar a compilar()
+6. Imprimir errores léxicos (si hay)
+7. Imprimir advertencias de rango (si hay)
+8. Imprimir errores sintácticos (si hay)
+9. Escribir el HTML al archivo de salida    → siempre, incluso con errores parciales
+10. Imprimir resumen final (OK / PARCIAL)
+11. sys.exit(2) si hubo errores léxicos o sintácticos</div>
+      <div class="nb"><strong>HTML siempre:</strong> el archivo HTML se escribe incluso cuando hay errores, con lo que el parser pudo analizar correctamente. Esto facilita la depuración visual del script.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ modo_interactivo ══ -->
+<section class="section" id="modo-interactivo">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>función modo_interactivo()</h2></div>
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)">
+      <span class="fk kf">func</span>
+      <span class="fn">modo_interactivo()</span>
+      <span class="fb2">Bucle de consola: acumula líneas y compila al recibir línea en blanco</span>
+      <span class="ft">›</span>
+    </div>
+    <div class="fb">
+      <p class="fd">Implementa un REPL simplificado para el parser. El usuario escribe instrucciones línea a línea; cuando introduce una línea en blanco, el texto acumulado se envía a <code>compilar()</code> y el resultado se muestra en consola. Útil para probar fragmentos del lenguaje sin crear un archivo.</p>
+      <div class="fs">lineas = []
+bucle:
+    linea ← input()
+    si "salir" → break
+    si linea en blanco y hay lineas acumuladas:
+        fuente = "\n".join(lineas)
+        html, err_lex, adv_lex, err_sint = compilar(fuente, "interactivo")
+        mostrar errores y advertencias
+        si sin errores: imprimir HTML en consola
+        resetear lineas = []
+    si no:
+        lineas.append(linea)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ GUI / main ══ -->
 <section class="section" id="gui">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>seleccionar_archivo_gui() / main()</h2></div>
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>seleccionar_archivo_gui()</h2></div>
   <div class="fc pr">
     <div class="fh2" onclick="toggle(this)">
       <span class="fk kf">func</span>
       <span class="fn">seleccionar_archivo_gui()</span>
-      <span class="fb2">Selector gráfico de archivos con tkinter — sin cambios</span>
+      <span class="fb2">Abre el explorador de archivos nativo del sistema operativo</span>
       <span class="ft">›</span>
     </div>
     <div class="fb">
-      <p class="fd">Abre el explorador de archivos nativo del sistema operativo filtrado por <code>*.smart</code>. Crea una ventana raíz oculta de tkinter (necesaria para que <code>filedialog</code> funcione), la trae al frente con <code>lift() + focus_force()</code> y la destruye al terminar. Si tkinter no está disponible, captura el <code>ImportError</code> y retorna <code>None</code>.</p>
+      <p class="fd">Usa <code>tkinter.filedialog.askopenfilename()</code> filtrado por <code>*.smart</code>. Sigue estos pasos:</p>
+      <div class="fs">1. import tkinter as tk               ← si falla: return None (ImportError)
+2. root = tk.Tk()                     ← ventana raíz obligatoria para filedialog
+3. root.withdraw()                    ← ocultar la ventana (no queremos ventana vacía)
+4. root.lift() + root.focus_force()   ← traer al frente para que el diálogo no quede atrás
+5. ruta = filedialog.askopenfilename(filetypes=[("*.smart", ...)])
+6. root.destroy()                     ← liberar recursos de Tk
+7. return ruta if ruta else None      ← "" si el usuario canceló</div>
+      <div class="rb"><div class="rl">Retorna</div><div class="rv">str — ruta absoluta al archivo, o None si se canceló o tkinter no disponible</div></div>
     </div>
   </div>
-  <div class="fc pr" id="main">
+</section>
+
+<section class="section" id="main">
+  <div class="sh"><span class="sb2 bp">Parser</span><h2>función main()</h2></div>
+  <div class="fc pr">
     <div class="fh2" onclick="toggle(this)">
       <span class="fk kf">func</span>
       <span class="fn">main()</span>
-      <span class="fb2">Punto de entrada con tres modos de uso — sin cambios</span>
+      <span class="fb2">Punto de entrada — decide el modo de ejecución según sys.argv</span>
       <span class="ft">›</span>
     </div>
     <div class="fb">
+      <p class="fd">Lee <code>sys.argv</code> y despacha al modo correspondiente:</p>
       <table class="pt"><thead><tr><th>Comando</th><th>Comportamiento</th></tr></thead><tbody>
-        <tr><td class="pn">python parser_una_pasada.py</td><td class="pd">Abre selector gráfico. Si se cancela, cae a modo interactivo.</td></tr>
-        <tr><td class="pn">python parser_una_pasada.py archivo.smart</td><td class="pd">Procesa directamente la ruta indicada.</td></tr>
-        <tr><td class="pn">python parser_una_pasada.py --interactivo</td><td class="pd">Fuerza el modo consola sin GUI.</td></tr>
+        <tr><td class="pn">python parser_una_pasada.py</td><td class="pd">Sin argumentos: abre <code>seleccionar_archivo_gui()</code>. Si el usuario cancela o tkinter no está disponible, cae a <code>modo_interactivo()</code>.</td></tr>
+        <tr><td class="pn">python parser_una_pasada.py archivo.smart</td><td class="pd">Un argumento que no sea <code>--interactivo</code>: llama a <code>modo_archivo(sys.argv[1])</code>.</td></tr>
+        <tr><td class="pn">python parser_una_pasada.py --interactivo</td><td class="pd">Flag explícito: llama a <code>modo_interactivo()</code> directamente sin abrir ningún diálogo.</td></tr>
+        <tr><td class="pn">Dos o más argumentos</td><td class="pd">Imprime el mensaje de uso y sale con <code>sys.exit(1)</code>.</td></tr>
       </tbody></table>
     </div>
   </div>

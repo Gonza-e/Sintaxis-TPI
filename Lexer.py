@@ -203,7 +203,7 @@ def _es_blanco(c: str) -> bool:
 
 
 # ======================================================================
-#  6. FUNCIONES DE RECONOCIMIENTO MANUAL  (sin re)
+#  6. FUNCIONES DE RECONOCIMIENTO MANUAL
 #     Cada función recibe (linea, pos) y retorna (valor, nuevo_pos)
 #     o None si no hay coincidencia en esa posición.
 # ======================================================================
@@ -249,7 +249,6 @@ def _extraer_numero(s: str) -> float:
     Extrae el valor numérico del inicio de un string que puede
     comenzar con '-' y dígitos (para tokens como '25°C', '-5°C',
     '80%', '600lux').
-    Reemplaza re.match en la extraccion numerica.
     """
     i = 0
     if i < len(s) and s[i] == '-':
@@ -457,11 +456,6 @@ _EXTRACTOR: dict = {
 # ======================================================================
 
 class SmartHomeLexer:
-    """
-    Analizador léxico para SMART-HOME.
-    No usa el módulo `re` en ninguna parte.
-    Las palabras reservadas son CASE-SENSITIVE (solo MAYÚSCULAS).
-    """
 
     def __init__(self):
         self.errores:      list = []
@@ -648,14 +642,7 @@ class SmartHomeLexer:
     # ── Clasificación de identificadores ─────────────────────────
 
     def _clasificar(self, palabra: str) -> tuple:
-        """
-        Clasifica un identificador en su categoría real.
 
-        Cambio respecto a v2: las palabras reservadas son CASE-SENSITIVE.
-        Solo se reconocen en MAYÚSCULAS exactas.
-        Sensores y actuadores siguen siendo case-insensitive porque
-        son nombres de dispositivos dados por el usuario.
-        """
         # 1. Palabras reservadas: CASE-SENSITIVE (solo MAYÚSCULAS)
         if palabra in PALABRAS_RESERVADAS:
             return PALABRAS_RESERVADAS[palabra], palabra
@@ -746,7 +733,7 @@ def modo_interactivo():
     num_linea = 1
     sep = "=" * 67
     print(sep)
-    print("  SMART-HOME Lexer  v3.0  --  Modo Interactivo  (sin re)")
+    print("  SMART-HOME Lexer  --  Modo Interactivo")
     print("  Palabras reservadas solo en MAYUSCULAS.")
     print("  Comandos: 'reset' reinicia contexto | 'salir' termina")
     print(sep)
@@ -793,7 +780,7 @@ def modo_archivo(ruta: str) -> None:
     n      = sum(1 for t in tokens if t.tipo != TT.EOF)
     sep    = "=" * 67
     print(sep)
-    print(f"  SMART-HOME Lexer  v3.0  (sin re)")
+    print(f"  SMART-HOME Lexer")
     print(f"  Archivo : {ruta}")
     print(f"  Tokens  : {n}")
     print(sep)
@@ -813,6 +800,8 @@ def modo_archivo(ruta: str) -> None:
         print("  OK  Analisis lexico exitoso.")
     elif not lexer.errores:
         print("  OK  Analisis lexico exitoso (con advertencias).")
+    print(sep)
+    input("\nPresione Enter para salir...")
     if lexer.errores:
         sys.exit(2)
 
@@ -854,6 +843,7 @@ def main():
         else:
             print("No se selecciono archivo. Iniciando modo interactivo.\n")
             modo_interactivo()
+            input("\nPresione Enter para salir...")
     elif len(sys.argv) == 2:
         if sys.argv[1] == "--interactivo":
             modo_interactivo()

@@ -1,0 +1,38 @@
+WHEN sensor_luz < 250lux DO
+    foco_entrada.estado = ON
+    foco_entrada.brillo = 80%
+    foco_entrada.color  = BLANCO
+END
+
+WHEN sensor_movimiento == TRUE DO
+    IF sensor_temp > 26°C THEN
+        aire_acondicionado.estado   = ON
+        aire_acondicionado.modo     = FRIO
+        aire_acondicionado.temp_obj = 22°C
+    ELSE
+        aire_acondicionado.estado = OFF
+    END
+END
+
+EVERY 30m DO
+    IF reloj_principal.hora > 22:00 AND alarma_casa.estado == OFF THEN
+        persiana_sala.posicion     = 0%
+        cerradura_principal.estado = ON
+        altavoz_comedor.volumen    = 0%
+        altavoz_comedor.mensaje    = "Son las 22hs, hora de dormir"
+        altavoz_comedor.email_notif = felipe@smart-home.com.ar
+    END
+END
+
+IF sensor_humo == TRUE AND aire_acondicionado.estado == OFF THEN
+    alarma_principal.estado     = ON
+    alarma_principal.activada   = ON
+    aire_acondicionado.estado   = ON
+    aire_acondicionado.modo     = VENT
+    aire_acondicionado.temp_obj = 35°C
+    cerradura_principal.estado  = OFF
+    persiana_comedor.posicion   = 100%
+    altavoz_comedor.volumen     = 200%
+    altavoz_comedor.mensaje     = "PELIGRO. HUMO DETECTADO"
+    altavoz_comedor.email_notif = bomberos@smart-home.com.ar
+END

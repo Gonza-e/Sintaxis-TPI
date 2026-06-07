@@ -1,9 +1,3 @@
-// ================================================================
-// SMART-HOME  --  Archivo de prueba v2
-// Ejercita todos los tokens ATTR_* y los rangos nombrados.
-// ================================================================
-
-// -- Bloque 1: foco  (RANGO_PERCENT en brillo) --
 WHEN sensor_luz < 250lux DO
     foco_entrada.estado = ON
     foco_entrada.brillo = 80%
