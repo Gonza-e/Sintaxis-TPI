@@ -120,6 +120,63 @@ TIPOS_VALOR = {
     TT.IDENTIFICADOR,
 }
 
+
+# Tipos de valor válidos para cada sensor en condiciones.
+# Clave: prefijo canónico del sensor (como lo emite el lexer).
+# Valor: set de TT permitidos como lado derecho de la comparación.
+TIPOS_VALOR_SENSOR: dict = {
+    "sensor_temp":       {TT.TEMPERATURA},
+    "sensor_humedad":    {TT.PORCENTAJE},
+    "sensor_luz":        {TT.ILUMINANCIA},
+    "sensor_movimiento": {TT.TRUE, TT.FALSE},
+    "sensor_humo":       {TT.TRUE, TT.FALSE},
+}
+
+# Especificación completa de atributos válidos por actuador, según la
+# tabla de la consigna (sección "Identificadores de Sensores, Dispositivos
+# y Atributos"). Clave: (prefijo_actuador, TT.ATTR_*).
+# Valor: (tipos_TT_validos: set, solo_lectura: bool, descripcion: str)
+ESPECIFICACION_ATRIBUTOS: dict = {
+    # ── foco_ ────────────────────────────────────────────────
+    ("foco_",  TT.ATTR_ESTADO):   ({TT.ON, TT.OFF},                         False, "BOOL (ON/OFF)"),
+    ("foco_",  TT.ATTR_BRILLO):   ({TT.PORCENTAJE},                         False, "PERCENT (0%-100%)"),
+    ("foco_",  TT.ATTR_COLOR):    ({TT.BLANCO, TT.ROJO, TT.AZUL},           False, "NOMBRE (blanco/rojo/azul)"),
+
+    # ── aire_ ────────────────────────────────────────────────
+    ("aire_",  TT.ATTR_ESTADO):   ({TT.ON, TT.OFF},                         False, "BOOL (ON/OFF)"),
+    ("aire_",  TT.ATTR_MODO):     ({TT.FRIO, TT.CALOR, TT.VENT},            False, "DISCRETO (FRIO/CALOR/VENT)"),
+    ("aire_",  TT.ATTR_TEMP_OBJ): ({TT.TEMPERATURA},                        False, "TEMP (16°C-30°C)"),
+    ("aire_",  TT.ATTR_TEMP_ACT): ({TT.TEMPERATURA},                        True,  "TEMP — Solo Lectura"),
+
+    # ── persiana_ ────────────────────────────────────────────
+    ("persiana_", TT.ATTR_POSICION): ({TT.PORCENTAJE},                      False, "PERCENT (0%-100%)"),
+
+    # ── cerradura_ ───────────────────────────────────────────
+    ("cerradura_", TT.ATTR_ESTADO):  ({TT.ON, TT.OFF},                      False, "BOOL (ON/OFF)"),
+
+    # ── reloj_ ───────────────────────────────────────────────
+    ("reloj_", TT.ATTR_HORA):     ({TT.HORA},                               True,  "TIME — Solo Lectura"),
+    ("reloj_", TT.ATTR_FECHA):    ({TT.FECHA},                              True,  "DATE — Solo Lectura"),
+
+    # ── altavoz_ ─────────────────────────────────────────────
+    ("altavoz_", TT.ATTR_VOLUMEN):     ({TT.PORCENTAJE},                    False, "PERCENT (0%-100%)"),
+    ("altavoz_", TT.ATTR_MUTE):        ({TT.ON, TT.OFF},                    False, "BOOL (ON/OFF)"),
+    ("altavoz_", TT.ATTR_MENSAJE):     ({TT.CADENA},                        False, "texto (cadena entre comillas)"),
+    ("altavoz_", TT.ATTR_EMAIL_NOTIF): ({TT.EMAIL},                         False, "email"),
+
+    # ── alarma_ ──────────────────────────────────────────────
+    ("alarma_", TT.ATTR_ESTADO):    ({TT.ON, TT.OFF},                       False, "BOOL (ON/OFF)"),
+    ("alarma_", TT.ATTR_ACTIVADA):  ({TT.ON, TT.OFF},                       False, "BOOL (ON/OFF)"),
+}
+
+# Nombres legibles de los tipos válidos por sensor (para mensajes de error)
+_NOMBRE_TIPO_SENSOR: dict = {
+    "sensor_temp":       "TEMPERATURA (ej. 26°C)",
+    "sensor_humedad":    "PORCENTAJE (ej. 80%)",
+    "sensor_luz":        "ILUMINANCIA (ej. 250lux)",
+    "sensor_movimiento": "TRUE o FALSE",
+    "sensor_humo":       "TRUE o FALSE",
+}
 # Mapa operador TT → símbolo legible
 _OP_TEXTO = {
     TT.OP_EQ:  "==", TT.OP_NEQ: "!=",
@@ -207,6 +264,71 @@ class ParserHTML:
         """Recuperación de pánico: descarta tokens hasta el próximo punto seguro."""
         while not self._es(TT.EOF, *tipos_seguimiento):
             self._avanzar()
+
+    # ──────────────────────────────────────────────────────────────
+    #  Auxiliar: prefijo canónico de sensor
+    # ──────────────────────────────────────────────────────────────
+
+    def _validar_tipo_atributo(self, nombre_act: str, tok_attr: Token,
+                                 tok_val: Token, es_lectura: bool) -> None:
+        """
+        Valida que (actuador, atributo, valor) sea una combinacion correcta
+        segun ESPECIFICACION_ATRIBUTOS. Usado tanto en asignaciones
+        (es_lectura=False) como en condiciones de lectura (es_lectura=True).
+
+        Agrega un error semantico a self.errores si:
+          - el atributo no pertenece a ese tipo de actuador
+          - se intenta ESCRIBIR un atributo marcado Solo Lectura
+          - el tipo del valor no coincide con el tipo esperado
+        """
+        prefijo = self._prefijo_actuador(nombre_act)
+        clave   = (prefijo, tok_attr.tipo)
+        espec   = ESPECIFICACION_ATRIBUTOS.get(clave)
+
+        if espec is None:
+            if tok_attr.tipo != TT.ATTR_GENERICO:
+                self.errores.append(
+                    f"Error semantico  | Linea {tok_attr.linea:3d}, Col {tok_attr.col:3d} "
+                    f"| El atributo '.{tok_attr.valor}' no es valido para '{prefijo}*'"
+                )
+            return
+
+        tipos_validos, solo_lectura, desc = espec
+
+        if solo_lectura and not es_lectura:
+            self.errores.append(
+                f"Error semantico  | Linea {tok_attr.linea:3d}, Col {tok_attr.col:3d} "
+                f"| '{nombre_act}.{tok_attr.valor}' es de Solo Lectura y no puede asignarse"
+            )
+        elif tok_val.tipo not in tipos_validos:
+            self.errores.append(
+                f"Error semantico  | Linea {tok_val.linea:3d}, Col {tok_val.col:3d} "
+                f"| '{tok_val.valor}' no es valido para '{nombre_act}.{tok_attr.valor}' "
+                f"-> se esperaba {desc}"
+            )
+
+    def _prefijo_actuador(self, nombre: str) -> str:
+        """
+        Retorna el prefijo canónico del actuador dado su nombre completo.
+        Ej.: 'aire_acondicionado' -> 'aire_' ; 'foco_sala' -> 'foco_'
+        """
+        lower = nombre.lower()
+        for pfx in ("cerradura_", "persiana_", "altavoz_", "alarma_", "reloj_", "foco_", "aire_"):
+            if lower.startswith(pfx):
+                return pfx
+        return lower   # fallback
+
+    def _prefijo_sensor(self, nombre: str) -> str:
+        """
+        Retorna el prefijo canónico del sensor dado su nombre completo.
+        Necesario porque el lexer puede emitir nombres extendidos como
+        'sensor_temp_exterior'. Usamos la misma lógica que el lexer.
+        """
+        lower = nombre.lower()
+        for pfx in ("sensor_movimiento", "sensor_humedad", "sensor_humo", "sensor_temp", "sensor_luz"):
+            if lower == pfx or lower.startswith(pfx + "_"):
+                return pfx
+        return lower   # fallback: nombre tal cual
 
     # ──────────────────────────────────────────────────────────────
     #  Utilidades de emisión HTML
@@ -567,9 +689,20 @@ class ParserHTML:
             tok_s  = self._avanzar()
             tok_op = self._consumir(*TIPOS_OP_CMP)
             tok_v  = self._valor_literal()
+
+            # Validar que el tipo del valor sea compatible con el sensor
+            prefijo = self._prefijo_sensor(tok_s.valor)
+            tipos_validos = TIPOS_VALOR_SENSOR.get(prefijo)
+            if tipos_validos and tok_v.tipo not in tipos_validos:
+                nombre_validos = _NOMBRE_TIPO_SENSOR.get(prefijo, "valor compatible")
+                self.errores.append(
+                    f"Error semantico  | Linea {tok_v.linea:3d}, Col {tok_v.col:3d} "
+                    f"| '{tok_v.valor}' no es valido para '{tok_s.valor}' "
+                    f"-> se esperaba {nombre_validos}"
+                )
+
             op_txt = _OP_TEXTO.get(tok_op.tipo, tok_op.valor)
             texto  = f"{tok_s.valor} {op_txt} {tok_v.valor}"
-            # Registrar el sensor para emitir bloque verde
             sensor = (tok_s.valor, tok_op.tipo, tok_v.valor)
             return texto, [sensor]
 
@@ -580,6 +713,10 @@ class ParserHTML:
             tok_at = self._consumir(*TIPOS_ATTR)
             tok_op = self._consumir(*TIPOS_OP_CMP)
             tok_v  = self._valor_literal()
+
+            # Validar tipo (en lectura: temp_act/hora/fecha SI son legibles)
+            self._validar_tipo_atributo(tok_a.valor, tok_at, tok_v, es_lectura=True)
+
             op_txt = _OP_TEXTO.get(tok_op.tipo, tok_op.valor)
             texto  = f"{tok_a.valor}.{tok_at.valor} {op_txt} {tok_v.valor}"
             return texto, []   # actuadores en condición no generan bloque verde
@@ -611,7 +748,9 @@ class ParserHTML:
         tok_val  = self._valor_asig()
 
         nombre = tok_act.valor
-        li     = self._html_item(tok_attr.valor, tok_val.tipo, tok_val.valor)
+        self._validar_tipo_atributo(nombre, tok_attr, tok_val, es_lectura=False)
+
+        li = self._html_item(tok_attr.valor, tok_val.tipo, tok_val.valor)
 
         # Inicializar la entrada del actuador si no existe todavía
         if nombre not in acum:
@@ -694,7 +833,7 @@ def modo_archivo(ruta_entrada: str) -> None:
 
     html, err_lex, adv_lex, err_sint = compilar(fuente, nombre_base)
 
-    hay_errores = bool(err_lex or err_sint)
+    hay_errores = bool(err_lex or err_sint or adv_lex)
 
     if err_lex:
         print(f"\n  [ERRORES LEXICOS: {len(err_lex)}]")
@@ -711,19 +850,18 @@ def modo_archivo(ruta_entrada: str) -> None:
         for e in err_sint:
             print(f"    {e}")
 
+    print()
+    if hay_errores:
+        # Con errores no se genera ningun archivo HTML
+        print(f"  ERROR  Analisis fallido -- no se genero HTML.")
+        print(f"         Corrija los errores indicados e intente nuevamente.")
+        sys.exit(2)
+
+    # Sin errores: escribir el HTML
     with open(ruta_html, "w", encoding="utf-8") as f:
         f.write(html)
 
-    print()
-    if not hay_errores and not adv_lex:
-        print(f"  OK  Analisis exitoso. HTML generado en: {ruta_html}")
-    elif not hay_errores:
-        print(f"  OK  Analisis exitoso (con advertencias). HTML generado en: {ruta_html}")
-    else:
-        print(f"  PARCIAL  HTML generado con errores en: {ruta_html}")
-
-    if hay_errores:
-        sys.exit(2)
+    print(f"  OK  Analisis exitoso. HTML generado en: {ruta_html}")
 
 
 # ======================================================================

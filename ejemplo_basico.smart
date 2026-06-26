@@ -8,8 +8,9 @@ WHEN sensor_luz < 250lux DO
 END
 
 // -- Bloque 2: aire  (RANGO_TEMP_1 en sensor, RANGO_TEMP_2 en temp_obj) --
-WHEN sensor_movimiento == TRUE DO
+WHEN sensor_movimiento == 10°C 
     IF sensor_temp > 26°C THEN
+        sensor_temp = ON
         aire_acondicionado.estado    = ON
         aire_acondicionado.modo      = FRIO
         aire_acondicionado.temp_obj  = 22°C

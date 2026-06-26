@@ -24,15 +24,16 @@ EVERY 30m DO
     END
 END
 
-IF sensor_humo == TRUE AND aire_acondicionado.estado == OFF THEN
-    alarma_principal.estado     = ON
+IF alarma_principal.estado == ON AND aire_acondicionado.estado == OFF THEN
+    alarma_principal.estado     = OFF
     alarma_principal.activada   = ON
     aire_acondicionado.estado   = ON
     aire_acondicionado.modo     = VENT
-    aire_acondicionado.temp_obj = 35°C
+    aire_acondicionado.temp_obj = 30°C
     cerradura_principal.estado  = OFF
     persiana_comedor.posicion   = 100%
-    altavoz_comedor.volumen     = 200%
+    altavoz_comedor.volumen     = 100%
+    altavoz_comedor.mute     = ON
     altavoz_comedor.mensaje     = "PELIGRO. HUMO DETECTADO"
     altavoz_comedor.email_notif = bomberos@smart-home.com.ar
 END
