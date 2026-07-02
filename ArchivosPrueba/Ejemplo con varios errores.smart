@@ -1,0 +1,48 @@
+// El sensor de luz (entrada) activa el foco (salida) 
+//error en lux de 2500
+WHEN sensor_luz < 2500lux DO 
+//error onn con doble n
+	foco_entrada.estado = ONN 
+	//error porcentaje 800
+	foco_entrada.brillo = 800% 
+	foco_patio.estado = ON 
+	// error colorado no es color valido
+	foco_patio.color = colorado 
+END 
+// Gestion inteligente del aire acondicionado 
+//error bool deberia ser true, no ON
+WHEN sensor_movimiento == ON DO 
+// error temperatura mas de 50
+	IF sensor_temp_int > 56°C THEN 
+		aire_acondicionado.estado = ON 
+		//error modo no esperado
+		aire_acondicionado.modo = INVIERNO 
+		aire_acondicionado.temp_obj = -5°C 
+		ELSE 
+		//error tipo de booleano, espera off
+		aire_acondicionado.estado = false 
+	END 
+END 
+//error no son 30m 
+EVERY 30mm DO 
+//error mes de fecha y error en hora
+	IF reloj_cocina.fecha > 01/15/2009 OR reloj_cocina.hora > 25:70 AND alarma.estado == OFF THEN 
+		persiana_sala.posicion = 0%
+		//error usa comparacion en vez de asignacion
+		cerradura_principal.estado == ON 
+		//error volumen no en porcentaje
+		altavoz_comedor.volumen = 0 
+		altavoz_comedor.mensaje = “Son las 22hs, hora de dormir” 
+		altavoz_comedor.email_notif = felipe@smart-home.com.ar 
+	END 
+END 
+IF sensor_humo == TRUE AND aire_acondicionado.estado == OFF THEN 
+	aire_acondicionado.estado = ON 
+	aire_acondicionado.modo = VENT 
+	aire_acondicionado.temp_obj = 22°C 
+	cerradura_principal.estado = OFF 
+	persiana_comedor.posicion = 100% 
+	altavoz_comedor.mensaje = “PELIGRO. HUMO DETECTADO” 
+	//error doble arroba
+	altavoz_comedor.email_notif = bomberos@@smart-home.com.ar 
+END

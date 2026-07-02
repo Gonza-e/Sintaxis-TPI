@@ -60,4 +60,5 @@ END
 IF reloj_principal.hora > 06:00 THEN
     foco_jardin.estado = ON
     foco_jardin.brillo = 60%
+    foco_jardin.color = rojo
 END

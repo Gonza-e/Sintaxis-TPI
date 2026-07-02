@@ -1,0 +1,11 @@
+// El sensor de luz (entrada) activa el foco (salida) 
+WHEN sensor_luz < 250lux DO 
+	foco_entrada.estado = ON 
+	foco_patio.color = azul 
+	aire_acondicionado.modo = FRIO
+Every 30m DO 
+	IF reloj_cocina.fecha > 01/01/2005 OR reloj_cocina.hora > 22:00 AND alarma_casa.estado == OFF THEN 
+		persiana_sala.posicion = 0%
+		altavoz_comedor.mensaje = “Son las 22hs, hora de dormir” 
+		altavoz_comedor.email_notif = felipe@smart-home.com.ar 
+IF sensor_humo == TRUE

@@ -1,73 +1,19 @@
 """
 ╔══════════════════════════════════════════════════════════════════╗
-║   SMART-HOME Parser de una sola pasada + Traductor HTML         ║
-║   Sintaxis y Semántica de Lenguajes  —  UTN FRRe  |  2026      ║
+║   SMART-HOME Parser PLY  —  Sintaxis y Semántica de Lenguajes   ║
+║   UTN Facultad Regional Resistencia  |  Ciclo 2026              ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-Parser descendente recursivo LL(1) que genera HTML directamente
-durante el recorrido sintáctico, sin construir un AST intermedio.
+Análisis léxico  : lexer_v4.py (implementación manual, sin re)
+Análisis sintáctico: PLY LALR(1)
 
-Esta técnica se conoce como "traducción dirigida por la sintaxis"
-(syntax-directed translation): cada regla gramatical tiene asociada
-una acción semántica que emite el HTML correspondiente en el momento
-en que esa regla es reconocida.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-GRAMÁTICA CON ACCIONES SEMÁNTICAS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-programa    ::= { instruccion }  EOF
-                { emitir cabecera HTML }   { emitir cierre HTML }
-
-instruccion ::= bloque_when | bloque_every | condicional | asignacion_suelta
-
-bloque_when ::= WHEN condicion DO
-                { emitir <div seccion> + <h2>Cuando: …</h2> }
-                { emitir sensores de la condicion }
-                cuerpo
-                END
-                { emitir </div> }
-
-bloque_every::= EVERY TIEMPO DO
-                { emitir <div seccion> + <h2>Cada: TIEMPO</h2> }
-                cuerpo
-                END
-                { emitir </div> }
-
-cuerpo      ::= { accion }+
-                — acumula asignaciones por actuador en un dict
-                — al finalizar vuelca cada actuador como <div gray>
-
-accion      ::= asignacion | condicional
-
-condicional ::= IF condicion THEN
-                { emitir <div seccion> + <h3>Si: …</h3> }
-                { emitir sensores de la condicion }
-                cuerpo
-                [ ELSE
-                  { emitir <div seccion> + <h3>En caso contrario</h3> }
-                  cuerpo
-                  { emitir </div> }
-                ]
-                END
-                { emitir </div> }
-
-asignacion  ::= ACTUADOR PUNTO ATTR OP_ASIG valor
-                { acumular en dict[actuador] → [(attr, valor)] }
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TRUCO PARA EL AGRUPAMIENTO EN UNA SOLA PASADA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-El problema: varias asignaciones seguidas del mismo actuador deben
-producir UN único <div> con todos sus atributos.
-
-La solución sin AST: cada llamada a _cuerpo() mantiene un dict
-local  acumulador  { nombre_actuador: [lineas_html_li] }.
-Las asignaciones NO emiten HTML directamente sino que depositan
-sus <li> en ese dict. Al llegar al END (o ELSE), _cuerpo() vuelca
-el dict emitiendo un <div gray><h1>…</h1><ul>…</ul></div> por cada
-actuador, respetando el orden de primera aparición.
+Nota sobre el adaptador:
+  PLY llama a lexer.token() y espera un objeto con .type/.value/.lineno.
+  Nuestro adaptador (_PLYToken) envuelve cada Token de lexer_v4 así:
+      _PLYToken.type   = tok.tipo   (string, ej. "WHEN")
+      _PLYToken.value  = tok        (Token completo de lexer_v4)
+  Dentro de las reglas p_*, PLY ya extrae .value automáticamente,
+  por lo tanto p[i] == Token de lexer_v4, con campos .tipo/.valor/.linea/.col
 """
 
 import sys
@@ -76,842 +22,782 @@ from collections import OrderedDict
 from typing import Optional, List
 
 sys.path.insert(0, os.path.dirname(__file__))
-from Lexer import SmartHomeLexer, Token, TT
+from Lexer import (
+    SmartHomeLexer, Token, TT,
+    ATRIBUTOS_CONOCIDOS,
+)
+
+import ply.yacc as yacc
 
 
 # ======================================================================
-#  1. ERROR SINTÁCTICO
+#  1. ESPECIFICACIONES SEMÁNTICAS
 # ======================================================================
 
-class ErrorSintactico(Exception):
-    def __init__(self, mensaje: str, tok: Token):
-        super().__init__(mensaje)
-        self.tok = tok
-
-    def __str__(self):
-        return (f"Error sintactico | Linea {self.tok.linea:3d}, "
-                f"Col {self.tok.col:3d} | {self.args[0]} "
-                f"(token: '{self.tok.valor}' [{self.tok.tipo}])")
-
-
-# ======================================================================
-#  2. CONJUNTOS DE TIPOS (lookahead)
-# ======================================================================
-
-TIPOS_OP_CMP = {
-    TT.OP_EQ, TT.OP_NEQ, TT.OP_GT, TT.OP_LT, TT.OP_GTE, TT.OP_LTE,
-}
-
-TIPOS_ATTR = {
-    TT.ATTR_ESTADO, TT.ATTR_BRILLO, TT.ATTR_COLOR,
-    TT.ATTR_MODO, TT.ATTR_TEMP_OBJ, TT.ATTR_TEMP_ACT,
-    TT.ATTR_POSICION, TT.ATTR_HORA, TT.ATTR_FECHA,
-    TT.ATTR_VOLUMEN, TT.ATTR_MUTE, TT.ATTR_MENSAJE,
-    TT.ATTR_EMAIL_NOTIF, TT.ATTR_ACTIVADA, TT.ATTR_GENERICO,
-}
-
-TIPOS_VALOR = {
-    TT.TEMPERATURA, TT.PORCENTAJE, TT.ILUMINANCIA, TT.TIEMPO,
-    TT.HORA, TT.FECHA, TT.EMAIL, TT.CADENA,
-    TT.ON, TT.OFF, TT.TRUE, TT.FALSE,
-    TT.FRIO, TT.CALOR, TT.VENT,
-    TT.BLANCO, TT.ROJO, TT.AZUL,
-    TT.ENTERO, TT.FLOTANTE,
-    TT.IDENTIFICADOR,
-}
-
-
-# Tipos de valor válidos para cada sensor en condiciones.
-# Clave: prefijo canónico del sensor (como lo emite el lexer).
-# Valor: set de TT permitidos como lado derecho de la comparación.
-TIPOS_VALOR_SENSOR: dict = {
-    "sensor_temp":       {TT.TEMPERATURA},
-    "sensor_humedad":    {TT.PORCENTAJE},
-    "sensor_luz":        {TT.ILUMINANCIA},
-    "sensor_movimiento": {TT.TRUE, TT.FALSE},
-    "sensor_humo":       {TT.TRUE, TT.FALSE},
-}
-
-# Especificación completa de atributos válidos por actuador, según la
-# tabla de la consigna (sección "Identificadores de Sensores, Dispositivos
-# y Atributos"). Clave: (prefijo_actuador, TT.ATTR_*).
-# Valor: (tipos_TT_validos: set, solo_lectura: bool, descripcion: str)
 ESPECIFICACION_ATRIBUTOS: dict = {
-    # ── foco_ ────────────────────────────────────────────────
-    ("foco_",  TT.ATTR_ESTADO):   ({TT.ON, TT.OFF},                         False, "BOOL (ON/OFF)"),
-    ("foco_",  TT.ATTR_BRILLO):   ({TT.PORCENTAJE},                         False, "PERCENT (0%-100%)"),
-    ("foco_",  TT.ATTR_COLOR):    ({TT.BLANCO, TT.ROJO, TT.AZUL},           False, "NOMBRE (blanco/rojo/azul)"),
-
-    # ── aire_ ────────────────────────────────────────────────
-    ("aire_",  TT.ATTR_ESTADO):   ({TT.ON, TT.OFF},                         False, "BOOL (ON/OFF)"),
-    ("aire_",  TT.ATTR_MODO):     ({TT.FRIO, TT.CALOR, TT.VENT},            False, "DISCRETO (FRIO/CALOR/VENT)"),
-    ("aire_",  TT.ATTR_TEMP_OBJ): ({TT.TEMPERATURA},                        False, "TEMP (16°C-30°C)"),
-    ("aire_",  TT.ATTR_TEMP_ACT): ({TT.TEMPERATURA},                        True,  "TEMP — Solo Lectura"),
-
-    # ── persiana_ ────────────────────────────────────────────
-    ("persiana_", TT.ATTR_POSICION): ({TT.PORCENTAJE},                      False, "PERCENT (0%-100%)"),
-
-    # ── cerradura_ ───────────────────────────────────────────
-    ("cerradura_", TT.ATTR_ESTADO):  ({TT.ON, TT.OFF},                      False, "BOOL (ON/OFF)"),
-
-    # ── reloj_ ───────────────────────────────────────────────
-    ("reloj_", TT.ATTR_HORA):     ({TT.HORA},                               True,  "TIME — Solo Lectura"),
-    ("reloj_", TT.ATTR_FECHA):    ({TT.FECHA},                              True,  "DATE — Solo Lectura"),
-
-    # ── altavoz_ ─────────────────────────────────────────────
-    ("altavoz_", TT.ATTR_VOLUMEN):     ({TT.PORCENTAJE},                    False, "PERCENT (0%-100%)"),
-    ("altavoz_", TT.ATTR_MUTE):        ({TT.ON, TT.OFF},                    False, "BOOL (ON/OFF)"),
-    ("altavoz_", TT.ATTR_MENSAJE):     ({TT.CADENA},                        False, "texto (cadena entre comillas)"),
-    ("altavoz_", TT.ATTR_EMAIL_NOTIF): ({TT.EMAIL},                         False, "email"),
-
-    # ── alarma_ ──────────────────────────────────────────────
-    ("alarma_", TT.ATTR_ESTADO):    ({TT.ON, TT.OFF},                       False, "BOOL (ON/OFF)"),
-    ("alarma_", TT.ATTR_ACTIVADA):  ({TT.ON, TT.OFF},                       False, "BOOL (ON/OFF)"),
+    (TT.ACT_FOCO,      TT.ATTR_ESTADO):      ({TT.ON, TT.OFF},               False, "BOOL (ON/OFF)"),
+    (TT.ACT_FOCO,      TT.ATTR_BRILLO):      ({TT.PORCENTAJE},               False, "PERCENT (0%-100%)"),
+    (TT.ACT_FOCO,      TT.ATTR_COLOR):       ({TT.BLANCO, TT.ROJO, TT.AZUL}, False, "NOMBRE (BLANCO/ROJO/AZUL)"),
+    (TT.ACT_AIRE,      TT.ATTR_ESTADO):      ({TT.ON, TT.OFF},               False, "BOOL (ON/OFF)"),
+    (TT.ACT_AIRE,      TT.ATTR_MODO):        ({TT.FRIO, TT.CALOR, TT.VENT},  False, "DISCRETO (FRIO/CALOR/VENT)"),
+    (TT.ACT_AIRE,      TT.ATTR_TEMP_OBJ):    ({TT.TEMPERATURA},              False, "TEMP (16°C-30°C)"),
+    (TT.ACT_AIRE,      TT.ATTR_TEMP_ACT):    ({TT.TEMPERATURA},              True,  "TEMP — Solo Lectura"),
+    (TT.ACT_PERSIANA,  TT.ATTR_POSICION):    ({TT.PORCENTAJE},               False, "PERCENT (0%-100%)"),
+    (TT.ACT_CERRADURA, TT.ATTR_ESTADO):      ({TT.ON, TT.OFF},               False, "BOOL (ON/OFF)"),
+    (TT.ACT_RELOJ,     TT.ATTR_HORA):        ({TT.HORA},                     True,  "TIME — Solo Lectura"),
+    (TT.ACT_RELOJ,     TT.ATTR_FECHA):       ({TT.FECHA},                    True,  "DATE — Solo Lectura"),
+    (TT.ACT_ALTAVOZ,   TT.ATTR_VOLUMEN):     ({TT.PORCENTAJE},               False, "PERCENT (0%-100%)"),
+    (TT.ACT_ALTAVOZ,   TT.ATTR_MUTE):        ({TT.ON, TT.OFF},               False, "BOOL (ON/OFF)"),
+    (TT.ACT_ALTAVOZ,   TT.ATTR_MENSAJE):     ({TT.CADENA},                   False, "texto (cadena)"),
+    (TT.ACT_ALTAVOZ,   TT.ATTR_EMAIL_NOTIF): ({TT.EMAIL},                    False, "email"),
+    (TT.ACT_ALARMA,    TT.ATTR_ESTADO):      ({TT.ON, TT.OFF},               False, "BOOL (ON/OFF)"),
+    (TT.ACT_ALARMA,    TT.ATTR_ACTIVADA):    ({TT.ON, TT.OFF},               False, "BOOL (ON/OFF)"),
 }
 
-# Nombres legibles de los tipos válidos por sensor (para mensajes de error)
+TIPOS_VALOR_SENSOR: dict = {
+    TT.SENSOR_TEMP:       {TT.TEMPERATURA},
+    TT.SENSOR_HUMEDAD:    {TT.PORCENTAJE},
+    TT.SENSOR_LUZ:        {TT.ILUMINANCIA},
+    TT.SENSOR_MOVIMIENTO: {TT.TRUE, TT.FALSE},
+    TT.SENSOR_HUMO:       {TT.TRUE, TT.FALSE},
+}
+
 _NOMBRE_TIPO_SENSOR: dict = {
-    "sensor_temp":       "TEMPERATURA (ej. 26°C)",
-    "sensor_humedad":    "PORCENTAJE (ej. 80%)",
-    "sensor_luz":        "ILUMINANCIA (ej. 250lux)",
-    "sensor_movimiento": "TRUE o FALSE",
-    "sensor_humo":       "TRUE o FALSE",
+    TT.SENSOR_TEMP:       "TEMPERATURA (ej. 26°C)",
+    TT.SENSOR_HUMEDAD:    "PORCENTAJE (ej. 80%)",
+    TT.SENSOR_LUZ:        "ILUMINANCIA (ej. 250lux)",
+    TT.SENSOR_MOVIMIENTO: "TRUE o FALSE",
+    TT.SENSOR_HUMO:       "TRUE o FALSE",
 }
-# Mapa operador TT → símbolo legible
+
+
+# ======================================================================
+#  2. ESTILOS HTML
+# ======================================================================
+
+CSS_SENSOR   = "border:1px solid green; padding:20px; margin:10px 0;"
+CSS_ACTUADOR = "border:1px solid gray;  padding:20px; margin:10px 0;"
+CSS_SECCION  = ("margin:20px 0; padding:12px 16px; "
+                "border-left:3px solid #4a90d9; background:#f8f9ff;")
+
 _OP_TEXTO = {
-    TT.OP_EQ:  "==", TT.OP_NEQ: "!=",
-    TT.OP_GT:  ">",  TT.OP_LT:  "<",
+    TT.OP_EQ: "==", TT.OP_NEQ: "!=",
+    TT.OP_GT: ">",  TT.OP_LT:  "<",
     TT.OP_GTE: ">=", TT.OP_LTE: "<=",
 }
 
-# Nombres legibles de sensores para el HTML
 _LABEL_SENSOR = {
-    "sensor_temp":       "Temperatura",
-    "sensor_humedad":    "Humedad",
-    "sensor_luz":        "Iluminancia",
-    "sensor_movimiento": "Movimiento detectado",
-    "sensor_humo":       "Humo detectado",
+    TT.SENSOR_TEMP:       "Temperatura",
+    TT.SENSOR_HUMEDAD:    "Humedad",
+    TT.SENSOR_LUZ:        "Iluminancia",
+    TT.SENSOR_MOVIMIENTO: "Movimiento detectado",
+    TT.SENSOR_HUMO:       "Humo detectado",
 }
+
 _UNIDAD_SENSOR = {
-    "sensor_temp":    "°C",
-    "sensor_humedad": "%",
-    "sensor_luz":     "lux",
+    TT.SENSOR_TEMP:    "°C",
+    TT.SENSOR_HUMEDAD: "%",
+    TT.SENSOR_LUZ:     "lux",
 }
 
 
 # ======================================================================
-#  3. PARSER CON TRADUCCIÓN DIRECTA
+#  3. ESTADO GLOBAL (compartido entre reglas PLY)
 # ======================================================================
 
-class ParserHTML:
-    """
-    Parser LL(1) descendente recursivo para SMART-HOME.
-    Genera el HTML completo durante el análisis sintáctico,
-    sin construir ningún árbol intermedio.
+class _Estado:
+    def reset(self, titulo: str = ""):
+        self.titulo       = titulo
+        self.errores_sint: List[str] = []
+        self.errores_sem:  List[str] = []
+        self._out:         List[str] = []
+        self._pila_acum:   List[OrderedDict] = []
 
-    Uso:
-        p = ParserHTML(tokens, titulo="mi_script")
-        html = p.parsear()
-        # p.errores contiene los errores sintácticos
-    """
+    def emit(self, s: str):
+        self._out.append(s)
 
-    # Estilos según la consigna (sección 5)
-    _CSS_SENSOR   = "border:1px solid green; padding:20px; margin:10px 0;"
-    _CSS_ACTUADOR = "border:1px solid gray;  padding:20px; margin:10px 0;"
-    _CSS_SECCION  = ("margin:20px 0; padding:12px 16px; "
-                     "border-left:3px solid #4a90d9; background:#f8f9ff;")
+    def html(self) -> str:
+        return "\n".join(self._out)
 
-    def __init__(self, tokens: List[Token], titulo: str = "Smart Home"):
-        # Filtrar EOF intermedios y añadir uno al final
-        self._tokens = [t for t in tokens if t.tipo != TT.EOF]
-        self._tokens.append(Token(TT.EOF, "", 0, 0))
-        self._pos    = 0
-        self._titulo = titulo
-        self.errores: List[str] = []
+    # ── Pila de acumuladores ──────────────────────────────────────
+    def push_acum(self):
+        self._pila_acum.append(OrderedDict())
 
-        # Buffer de salida HTML — se construye línea a línea
-        self._out: List[str] = []
+    def pop_acum(self):
+        if self._pila_acum:
+            self._pila_acum.pop()
 
-    # ──────────────────────────────────────────────────────────────
-    #  Utilidades de cursor
-    # ──────────────────────────────────────────────────────────────
+    def acum(self) -> OrderedDict:
+        return self._pila_acum[-1] if self._pila_acum else OrderedDict()
 
-    def _actual(self) -> Token:
-        return self._tokens[self._pos]
+    def anotar(self, nombre: str, li: str):
+        a = self.acum()
+        if nombre not in a:
+            a[nombre] = []
+        a[nombre].append(li)
 
-    def _es(self, *tipos) -> bool:
-        return self._actual().tipo in tipos
+    def volcar(self, ind: str):
+        """Emite bloques grises de todos los actuadores acumulados."""
+        a = self.acum()
+        for nombre, items in a.items():
+            self.emit(f'{ind}<div style="{CSS_ACTUADOR}">')
+            self.emit(f"{ind}  <h1>{nombre}</h1>")
+            self.emit(f"{ind}  <ul>")
+            for li in items:
+                self.emit(f"{ind}    {li}")
+            self.emit(f"{ind}  </ul>")
+            self.emit(f"{ind}</div>")
+        a.clear()
 
-    def _consumir(self, *tipos) -> Token:
-        """Verifica el tipo, avanza y retorna el token consumido."""
-        tok = self._actual()
-        if tok.tipo not in tipos:
-            esperado = " | ".join(tipos)
-            raise ErrorSintactico(
-                f"Se esperaba {esperado} pero se encontro {tok.tipo}",
-                tok,
-            )
-        self._pos += 1
-        return tok
+    # ── Construcción HTML ─────────────────────────────────────────
+    def bloque_sensor(self, tok_s: Token, tok_op: Token, tok_v: Token, ind: str):
+        label  = _LABEL_SENSOR.get(tok_s.tipo, tok_s.valor)
+        unidad = _UNIDAD_SENSOR.get(tok_s.tipo, "")
+        op_txt = _OP_TEXTO.get(tok_op.tipo, tok_op.valor)
+        texto  = f"{label}  {op_txt} {tok_v.valor}{unidad}".strip()
+        self.emit(f'{ind}<div style="{CSS_SENSOR}">')
+        self.emit(f"{ind}  <h2>{texto}</h2>")
+        self.emit(f"{ind}</div>")
 
-    def _avanzar(self) -> Token:
-        """Avanza sin validar tipo."""
-        tok = self._actual()
-        self._pos += 1
-        return tok
+    def html_item(self, attr: Token, val: Token) -> str:
+        label = attr.valor.replace("_", " ").capitalize()
+        if val.tipo == TT.EMAIL:
+            u = val.valor.split("@")[0]
+            c = f'<a href="mailto:{val.valor}">Contactar a {u}</a>'
+        elif val.tipo == TT.CADENA:
+            c = val.valor.strip('"').strip('\u201c').strip('\u201d')
+        else:
+            c = val.valor
+        return f"<li>{label}: {c}</li>"
 
-    def _sincronizar(self, *tipos_seguimiento):
-        """Recuperación de pánico: descarta tokens hasta el próximo punto seguro."""
-        while not self._es(TT.EOF, *tipos_seguimiento):
-            self._avanzar()
-
-    # ──────────────────────────────────────────────────────────────
-    #  Auxiliar: prefijo canónico de sensor
-    # ──────────────────────────────────────────────────────────────
-
-    def _validar_tipo_atributo(self, nombre_act: str, tok_attr: Token,
-                                 tok_val: Token, es_lectura: bool) -> None:
-        """
-        Valida que (actuador, atributo, valor) sea una combinacion correcta
-        segun ESPECIFICACION_ATRIBUTOS. Usado tanto en asignaciones
-        (es_lectura=False) como en condiciones de lectura (es_lectura=True).
-
-        Agrega un error semantico a self.errores si:
-          - el atributo no pertenece a ese tipo de actuador
-          - se intenta ESCRIBIR un atributo marcado Solo Lectura
-          - el tipo del valor no coincide con el tipo esperado
-        """
-        prefijo = self._prefijo_actuador(nombre_act)
-        clave   = (prefijo, tok_attr.tipo)
-        espec   = ESPECIFICACION_ATRIBUTOS.get(clave)
-
-        if espec is None:
-            if tok_attr.tipo != TT.ATTR_GENERICO:
-                self.errores.append(
-                    f"Error semantico  | Linea {tok_attr.linea:3d}, Col {tok_attr.col:3d} "
-                    f"| El atributo '.{tok_attr.valor}' no es valido para '{prefijo}*'"
-                )
-            return
-
-        tipos_validos, solo_lectura, desc = espec
-
-        if solo_lectura and not es_lectura:
-            self.errores.append(
-                f"Error semantico  | Linea {tok_attr.linea:3d}, Col {tok_attr.col:3d} "
-                f"| '{nombre_act}.{tok_attr.valor}' es de Solo Lectura y no puede asignarse"
-            )
-        elif tok_val.tipo not in tipos_validos:
-            self.errores.append(
-                f"Error semantico  | Linea {tok_val.linea:3d}, Col {tok_val.col:3d} "
-                f"| '{tok_val.valor}' no es valido para '{nombre_act}.{tok_attr.valor}' "
+    # ── Validaciones semánticas ───────────────────────────────────
+    def chk_sensor(self, tok_s: Token, tok_v: Token):
+        tipos = TIPOS_VALOR_SENSOR.get(tok_s.tipo)
+        if tipos and tok_v.tipo not in tipos:
+            desc = _NOMBRE_TIPO_SENSOR.get(tok_s.tipo, "valor compatible")
+            self.errores_sem.append(
+                f"Error semantico  | Linea {tok_v.linea:3d}, Col {tok_v.col:3d} "
+                f"| '{tok_v.valor}' no es valido para '{tok_s.valor}' "
                 f"-> se esperaba {desc}"
             )
 
-    def _prefijo_actuador(self, nombre: str) -> str:
-        """
-        Retorna el prefijo canónico del actuador dado su nombre completo.
-        Ej.: 'aire_acondicionado' -> 'aire_' ; 'foco_sala' -> 'foco_'
-        """
-        lower = nombre.lower()
-        for pfx in ("cerradura_", "persiana_", "altavoz_", "alarma_", "reloj_", "foco_", "aire_"):
-            if lower.startswith(pfx):
-                return pfx
-        return lower   # fallback
-
-    def _prefijo_sensor(self, nombre: str) -> str:
-        """
-        Retorna el prefijo canónico del sensor dado su nombre completo.
-        Necesario porque el lexer puede emitir nombres extendidos como
-        'sensor_temp_exterior'. Usamos la misma lógica que el lexer.
-        """
-        lower = nombre.lower()
-        for pfx in ("sensor_movimiento", "sensor_humedad", "sensor_humo", "sensor_temp", "sensor_luz"):
-            if lower == pfx or lower.startswith(pfx + "_"):
-                return pfx
-        return lower   # fallback: nombre tal cual
-
-    # ──────────────────────────────────────────────────────────────
-    #  Utilidades de emisión HTML
-    # ──────────────────────────────────────────────────────────────
-
-    def _emit(self, linea: str):
-        """Agrega una línea al buffer de salida."""
-        self._out.append(linea)
-
-    def _html_sensor(self, nombre: str, op: str, valor: str, ind: str):
-        """
-        Emite el bloque HTML de un sensor con borde verde.
-        Acción semántica asociada a la regla expr_cond cuando
-        el lado izquierdo es un SENSOR.
-        """
-        label  = _LABEL_SENSOR.get(nombre, nombre)
-        unidad = _UNIDAD_SENSOR.get(nombre, "")
-        op_txt = _OP_TEXTO.get(op, op) if op else ""
-        texto  = f"{label}  {op_txt} {valor}{unidad}".strip()
-        self._emit(f'{ind}<div style="{self._CSS_SENSOR}">')
-        self._emit(f"{ind}  <h2>{texto}</h2>")
-        self._emit(f"{ind}</div>")
-
-    def _html_actuador(self, nombre: str, items: List[str], ind: str):
-        """
-        Emite el bloque HTML completo de un actuador con borde gris.
-        Recibe la lista de <li> ya construidos y los vuelca de una vez.
-        Acción semántica llamada al cerrar un cuerpo (END / ELSE).
-        """
-        self._emit(f'{ind}<div style="{self._CSS_ACTUADOR}">')
-        self._emit(f"{ind}  <h1>{nombre}</h1>")
-        self._emit(f"{ind}  <ul>")
-        for li in items:
-            self._emit(f"{ind}    {li}")
-        self._emit(f"{ind}  </ul>")
-        self._emit(f"{ind}</div>")
-
-    def _html_item(self, attr_nombre: str, valor_tipo: str, valor_raw: str) -> str:
-        """
-        Construye el string <li> para un atributo.
-        Si el valor es EMAIL genera un <a href="mailto:…">.
-        Si es CADENA elimina las comillas del token.
-        Retorna el string sin emitirlo aún (se acumula en el dict).
-        """
-        label = attr_nombre.replace("_", " ").capitalize()
-
-        if valor_tipo == TT.EMAIL:
-            usuario   = valor_raw.split("@")[0]
-            contenido = (f'<a href="mailto:{valor_raw}">'
-                         f'Contactar a {usuario}</a>')
-        elif valor_tipo == TT.CADENA:
-            contenido = valor_raw.strip('"')
-        else:
-            contenido = valor_raw
-
-        return f"<li>{label}: {contenido}</li>"
-
-    def _volcar_actuadores(self, acumulador: "OrderedDict[str, List[str]]", ind: str):
-        """
-        Emite los bloques HTML de todos los actuadores acumulados
-        en el dict del cuerpo actual y lo limpia.
-        Se llama justo antes de cerrar un bloque (END / ELSE).
-        """
-        for nombre, items in acumulador.items():
-            self._html_actuador(nombre, items, ind)
-        acumulador.clear()
-
-    # ──────────────────────────────────────────────────────────────
-    #  Punto de entrada
-    # ──────────────────────────────────────────────────────────────
-
-    def parsear(self) -> str:
-        """
-        Inicia el análisis. Emite la cabecera HTML, parsea el
-        programa completo y emite el cierre. Retorna el HTML como str.
-        """
-        self._emitir_cabecera()
-
-        while not self._es(TT.EOF):
-            try:
-                self._instruccion(nivel=0)
-            except ErrorSintactico as e:
-                self.errores.append(str(e))
-                self._sincronizar(TT.WHEN, TT.EVERY, TT.IF, TT.END, TT.EOF)
-                if self._es(TT.END):
-                    self._avanzar()
-
-        self._emitir_cierre()
-        return "\n".join(self._out)
-
-    # ──────────────────────────────────────────────────────────────
-    #  Cabecera y cierre del documento HTML
-    # ──────────────────────────────────────────────────────────────
-
-    def _emitir_cabecera(self):
-        t = self._titulo
-        self._emit("<!DOCTYPE html>")
-        self._emit('<html lang="es">')
-        self._emit("<head>")
-        self._emit('  <meta charset="UTF-8">')
-        self._emit('  <meta name="viewport" content="width=device-width, initial-scale=1.0">')
-        self._emit(f"  <title>Smart Home — {t}</title>")
-        self._emit("  <style>")
-        self._emit("    body { font-family: Arial, sans-serif; max-width: 900px; "
-                   "margin: 40px auto; padding: 0 20px; background:#f9f9f9; color:#222; }")
-        self._emit("    h1 { color: #333; } h2 { color: #2a6496; } "
-                   "h3 { color: #555; font-style: italic; }")
-        self._emit("    ul { margin: 8px 0; padding-left: 20px; } li { margin: 4px 0; }")
-        self._emit("    a  { color: #c0392b; }")
-        self._emit("  </style>")
-        self._emit("</head>")
-        self._emit("<body>")
-        self._emit(f'  <h1>Dashboard Smart Home — {t}</h1>')
-
-    def _emitir_cierre(self):
-        self._emit("</body>")
-        self._emit("</html>")
-
-    # ──────────────────────────────────────────────────────────────
-    #  instruccion
-    # ──────────────────────────────────────────────────────────────
-
-    def _instruccion(self, nivel: int):
-        """
-        instruccion ::= bloque_when | bloque_every | condicional | asignacion_suelta
-        Despacha según el token actual (lookahead de 1).
-        """
-        if self._es(TT.WHEN):
-            self._bloque_when(nivel)
-        elif self._es(TT.EVERY):
-            self._bloque_every(nivel)
-        elif self._es(TT.IF):
-            self._condicional(nivel)
-        elif self._es(TT.ACTUADOR):
-            # Asignación suelta en nivel raíz: bloque actuador sin sección padre
-            acum = OrderedDict()
-            self._asignacion(acum)
-            self._volcar_actuadores(acum, ind="  ")
-        else:
-            raise ErrorSintactico(
-                "Se esperaba WHEN, EVERY, IF o ACTUADOR",
-                self._actual(),
+    def chk_attr(self, tok_act: Token, tok_attr: Token,
+                 tok_val: Token, es_lectura: bool = False):
+        clave = (tok_act.tipo, tok_attr.tipo)
+        espec = ESPECIFICACION_ATRIBUTOS.get(clave)
+        if espec is None:
+            if tok_attr.tipo != TT.ATTR_GENERICO:
+                self.errores_sem.append(
+                    f"Error semantico  | Linea {tok_attr.linea:3d}, Col {tok_attr.col:3d} "
+                    f"| Atributo '.{tok_attr.valor}' no valido para '{tok_act.valor}'"
+                )
+            return
+        tipos_val, solo_lect, desc = espec
+        if solo_lect and not es_lectura:
+            self.errores_sem.append(
+                f"Error semantico  | Linea {tok_attr.linea:3d}, Col {tok_attr.col:3d} "
+                f"| '{tok_act.valor}.{tok_attr.valor}' es de Solo Lectura"
+            )
+        elif tok_val.tipo not in tipos_val:
+            self.errores_sem.append(
+                f"Error semantico  | Linea {tok_val.linea:3d}, Col {tok_val.col:3d} "
+                f"| '{tok_val.valor}' no es valido para "
+                f"'{tok_act.valor}.{tok_attr.valor}' -> se esperaba {desc}"
             )
 
-    # ──────────────────────────────────────────────────────────────
-    #  bloque WHEN
-    # ──────────────────────────────────────────────────────────────
 
-    def _bloque_when(self, nivel: int):
-        """
-        bloque_when ::= WHEN condicion DO cuerpo END
+_st = _Estado()
+_st.reset()
 
-        Acción semántica:
-          - Al reconocer WHEN: abre <div seccion> y emite <h2>
-          - Al reconocer los sensores de la condicion: emite bloques verdes
-          - Al reconocer DO: llama a _cuerpo() que acumula y vuelca actuadores
-          - Al reconocer END: cierra </div>
-        """
-        ind = "  " * (nivel + 1)
-        self._consumir(TT.WHEN)
 
-        # Parsear la condicion y capturar su texto + sensores mencionados
-        texto_cond, sensores = self._condicion()
+# ======================================================================
+#  4. ADAPTADOR LEXER → PLY
+# ======================================================================
 
-        self._consumir(TT.DO)
+class _PLYToken:
+    """
+    Objeto mínimo compatible con el protocolo de token de PLY.
 
-        # ── Acción semántica: abrir sección ──────────────────────
-        self._emit(f'{ind}<div style="{self._CSS_SECCION}">')
-        self._emit(f"{ind}  <h2>Cuando: {texto_cond}</h2>")
+    NOTA IMPORTANTE: no se usa __slots__ aquí porque PLY, al manejar
+    un error sintáctico, intenta asignar dinámicamente el atributo
+    `.lexer` sobre el token que causó el error (ply/yacc.py, método
+    parseopt_notrack, línea "errtoken.lexer = lexer"). Si la clase
+    tiene __slots__ sin incluir 'lexer', esa asignación lanza:
+        AttributeError: '_PLYToken' object has no attribute 'lexer'
+        and no __dict__ for setting new attributes
+    Por eso se usa una clase normal (con __dict__), que permite a PLY
+    agregar atributos extra sin que la aplicación se caiga.
+    """
+    pass
 
-        # Emitir los sensores que aparecen en la condición
-        for nombre, op, valor in sensores:
-            self._html_sensor(nombre, op, valor, ind + "  ")
 
-        # Parsear y emitir el cuerpo (actuadores)
-        self._cuerpo(nivel + 1)
+class LexerAdaptador:
+    """
+    Convierte List[Token] al protocolo de PLY.
+    PLY llama a .token() y obtiene _PLYToken donde:
+        .type  = tok.tipo   (string que PLY usa para las reglas)
+        .value = tok        (Token completo; PLY lo pasa como p[i] en reglas)
+    """
+    def __init__(self, tokens: List[Token]):
+        self._toks = [t for t in tokens if t.tipo not in (TT.EOF, TT.COMENTARIO, TT.DESCONOCIDO, TT.ERROR_LEX)]
+        self._pos = 0
 
-        self._consumir(TT.END)
+    def token(self):
+        if self._pos >= len(self._toks):
+            return None
+        tok = self._toks[self._pos]
+        self._pos += 1
+        p = _PLYToken()
+        p.type = tok.tipo
+        p.value = tok          # p[i] en reglas PLY == tok
+        p.lineno = tok.linea
+        p.lexpos = tok.col
+        return p
 
-        # ── Acción semántica: cerrar sección ─────────────────────
-        self._emit(f"{ind}</div>")
 
-    # ──────────────────────────────────────────────────────────────
-    #  bloque EVERY
-    # ──────────────────────────────────────────────────────────────
+# ======================================================================
+#  5. TOKENS PARA PLY
+# ======================================================================
 
-    def _bloque_every(self, nivel: int):
-        """
-        bloque_every ::= EVERY TIEMPO DO cuerpo END
+tokens = (
+    'WHEN','IF','THEN','ELSE','DO','END','EVERY',
+    'AND','OR','NOT',
+    'TRUE','FALSE','ON','OFF',
+    'FRIO','CALOR','VENT','BLANCO','ROJO','AZUL',
+    'SENSOR_TEMP','SENSOR_HUMEDAD','SENSOR_LUZ',
+    'SENSOR_MOVIMIENTO','SENSOR_HUMO',
+    'ACT_FOCO','ACT_AIRE','ACT_PERSIANA','ACT_CERRADURA',
+    'ACT_RELOJ','ACT_ALTAVOZ','ACT_ALARMA',
+    'ATTR_ESTADO','ATTR_BRILLO','ATTR_COLOR','ATTR_MODO',
+    'ATTR_TEMP_OBJ','ATTR_TEMP_ACT','ATTR_POSICION',
+    'ATTR_HORA','ATTR_FECHA','ATTR_VOLUMEN','ATTR_MUTE',
+    'ATTR_MENSAJE','ATTR_EMAIL_NOTIF','ATTR_ACTIVADA','ATTR_GENERICO',
+    'TEMPERATURA','PORCENTAJE','ILUMINANCIA','TIEMPO',
+    'HORA','FECHA','EMAIL','CADENA',
+    'ENTERO','FLOTANTE','IDENTIFICADOR',
+    'OP_EQ','OP_NEQ','OP_GTE','OP_LTE','OP_GT','OP_LT','OP_ASIG',
+    'PUNTO',
+)
 
-        Acción semántica: igual que WHEN pero el disparador es
-        el intervalo de tiempo en lugar de una condición.
-        """
-        ind = "  " * (nivel + 1)
-        self._consumir(TT.EVERY)
-        tok_tiempo = self._consumir(TT.TIEMPO)
-        self._consumir(TT.DO)
+precedence = (
+    ('left',  'OR'),
+    ('left',  'AND'),
+    ('right', 'NOT'),
+)
 
-        # ── Acción semántica: abrir sección ──────────────────────
-        self._emit(f'{ind}<div style="{self._CSS_SECCION}">')
-        self._emit(f"{ind}  <h2>Cada: {tok_tiempo.valor}</h2>")
 
-        self._cuerpo(nivel + 1)
+# ======================================================================
+#  6. GRAMÁTICA PLY
+#     Nota: p[i] ya es el Token de lexer_v4 (con .tipo/.valor/.linea/.col)
+# ======================================================================
 
-        self._consumir(TT.END)
+# ── programa ──────────────────────────────────────────────────────────
 
-        # ── Acción semántica: cerrar sección ─────────────────────
-        self._emit(f"{ind}</div>")
+def p_programa(p):
+    """programa : instruccion_lista"""
+    pass
 
-    # ──────────────────────────────────────────────────────────────
-    #  cuerpo  ← el núcleo del agrupamiento en una pasada
-    # ──────────────────────────────────────────────────────────────
+def p_instruccion_lista_multi(p):
+    """instruccion_lista : instruccion_lista instruccion"""
+    pass
 
-    def _cuerpo(self, nivel: int):
-        """
-        cuerpo ::= accion+
+def p_instruccion_lista_uno(p):
+    """instruccion_lista : instruccion"""
+    pass
 
-        Mantiene un OrderedDict local  { nombre_actuador: [items_li] }
-        mientras parsea las acciones del bloque.
+def p_instruccion(p):
+    """instruccion : bloque_when
+                   | bloque_every
+                   | condicional
+                   | asignacion_suelta"""
+    pass
 
-        Las asignaciones NO emiten HTML directamente; depositan sus
-        <li> en el acumulador. Los IF anidados sí emiten HTML (son
-        secciones completas) pero primero se vuelcan los actuadores
-        pendientes para no mezclar el orden visual.
 
-        Al llegar a END o ELSE (el token que cierra este cuerpo),
-        se vuelcan todos los actuadores acumulados como bloques grises.
+# ── bloque WHEN ───────────────────────────────────────────────────────
+# Se divide en _open + cuerpo + END para poder emitir la cabecera HTML
+# ANTES de procesar las acciones del cuerpo (que generan actuadores).
 
-        Esto es lo que permite agrupar múltiples asignaciones del
-        mismo actuador en un solo <div> sin necesitar un AST.
-        """
-        ind   = "  " * (nivel + 1)
-        acum  = OrderedDict()   # { "foco_sala": ["<li>estado: ON</li>", …] }
+def p_bloque_when_open(p):
+    """bloque_when_open : WHEN condicion DO"""
+    # p[1]=Token(WHEN), p[2]=(texto,sensores), p[3]=Token(DO)
+    texto, sensores = p[2]
+    ind = "  "
+    _st.emit(f'{ind}<div style="{CSS_SECCION}">')
+    _st.emit(f"{ind}  <h2>Cuando: {texto}</h2>")
+    for tok_s, tok_op, tok_v in sensores:
+        _st.bloque_sensor(tok_s, tok_op, tok_v, ind + "  ")
+    _st.push_acum()
+    p[0] = ind
 
-        while not self._es(TT.END, TT.ELSE, TT.EOF):
-            try:
-                if self._es(TT.IF):
-                    # Antes de entrar al IF, volcar los actuadores acumulados
-                    # para que aparezcan ANTES de la subsección IF en el HTML
-                    self._volcar_actuadores(acum, ind)
-                    self._condicional(nivel)
+def p_bloque_when(p):
+    """bloque_when : bloque_when_open cuerpo END"""
+    ind = p[1]
+    _st.volcar(ind + "  ")
+    _st.pop_acum()
+    _st.emit(f"{ind}</div>")
 
-                elif self._es(TT.ACTUADOR):
-                    # Acumular la asignación sin emitir HTML todavía
-                    self._asignacion(acum)
 
-                else:
-                    raise ErrorSintactico(
-                        "Se esperaba IF o ACTUADOR dentro del cuerpo",
-                        self._actual(),
-                    )
-            except ErrorSintactico as e:
-                self.errores.append(str(e))
-                self._sincronizar(TT.ACTUADOR, TT.IF, TT.END, TT.ELSE, TT.EOF)
+# ── bloque EVERY ──────────────────────────────────────────────────────
 
-        # Al salir del bucle (encontramos END o ELSE):
-        # volcar los actuadores que quedaron pendientes
-        self._volcar_actuadores(acum, ind)
+def p_bloque_every_open(p):
+    """bloque_every_open : EVERY TIEMPO DO"""
+    # p[2] = Token(TIEMPO) con .valor = "30m"
+    tiempo = p[2].valor
+    ind    = "  "
+    _st.emit(f'{ind}<div style="{CSS_SECCION}">')
+    _st.emit(f"{ind}  <h2>Cada: {tiempo}</h2>")
+    _st.push_acum()
+    p[0] = ind
 
-    # ──────────────────────────────────────────────────────────────
-    #  condicional IF
-    # ──────────────────────────────────────────────────────────────
+def p_bloque_every(p):
+    """bloque_every : bloque_every_open cuerpo END"""
+    ind = p[1]
+    _st.volcar(ind + "  ")
+    _st.pop_acum()
+    _st.emit(f"{ind}</div>")
 
-    def _condicional(self, nivel: int):
-        """
-        condicional ::= IF condicion THEN cuerpo [ELSE cuerpo] END
 
-        Acción semántica:
-          - Al reconocer IF: abre <div seccion> con <h3>
-          - Al reconocer ELSE: cierra el div THEN, abre uno nuevo con <h3>
-          - Al reconocer END: cierra el último div
-        """
-        ind = "  " * (nivel + 1)
-        self._consumir(TT.IF)
+# ── cuerpo ────────────────────────────────────────────────────────────
 
-        texto_cond, sensores = self._condicion()
+def p_cuerpo_multi(p):
+    """cuerpo : cuerpo accion"""
+    pass
 
-        self._consumir(TT.THEN)
+def p_cuerpo_uno(p):
+    """cuerpo : accion"""
+    pass
 
-        # ── Acción semántica: abrir sección THEN ─────────────────
-        tag = "h3" if nivel > 0 else "h2"
-        self._emit(f'{ind}<div style="{self._CSS_SECCION}">')
-        self._emit(f"{ind}  <{tag}>Si: {texto_cond}</{tag}>")
+def p_accion_asig(p):
+    """accion : asignacion"""
+    pass
 
-        for nombre, op, valor in sensores:
-            self._html_sensor(nombre, op, valor, ind + "  ")
+def p_accion_cond(p):
+    """accion : condicional_inner"""
+    pass
 
-        self._cuerpo(nivel + 1)
 
-        if self._es(TT.ELSE):
-            self._avanzar()
+# ── condicional a nivel raíz ──────────────────────────────────────────
 
-            # ── Acción semántica: cerrar THEN, abrir ELSE ─────────
-            self._emit(f"{ind}</div>")
-            self._emit(f'{ind}<div style="{self._CSS_SECCION}">')
-            self._emit(f"{ind}  <{tag}>En caso contrario:</{tag}>")
+def p_if_open(p):
+    """if_open : IF condicion THEN"""
+    texto, sensores = p[2]
+    ind = "  "
+    _st.emit(f'{ind}<div style="{CSS_SECCION}">')
+    _st.emit(f"{ind}  <h2>Si: {texto}</h2>")
+    for tok_s, tok_op, tok_v in sensores:
+        _st.bloque_sensor(tok_s, tok_op, tok_v, ind + "  ")
+    _st.push_acum()
+    p[0] = ind
 
-            self._cuerpo(nivel + 1)
+def p_else_open(p):
+    """else_open : ELSE"""
+    _st.volcar("    ")
+    _st.pop_acum()
+    _st.emit("  </div>")
+    _st.emit(f'  <div style="{CSS_SECCION}">')
+    _st.emit("    <h2>En caso contrario:</h2>")
+    _st.push_acum()
 
-        self._consumir(TT.END)
+def p_condicional_then(p):
+    """condicional : if_open cuerpo END"""
+    ind = p[1]
+    _st.volcar(ind + "  ")
+    _st.pop_acum()
+    _st.emit(f"{ind}</div>")
 
-        # ── Acción semántica: cerrar sección ─────────────────────
-        self._emit(f"{ind}</div>")
+def p_condicional_then_else(p):
+    """condicional : if_open cuerpo else_open cuerpo END"""
+    _st.volcar("    ")
+    _st.pop_acum()
+    _st.emit("  </div>")
 
-    # ──────────────────────────────────────────────────────────────
-    #  condicion  (retorna texto + lista de sensores mencionados)
-    # ──────────────────────────────────────────────────────────────
 
-    def _condicion(self) -> tuple:
-        """
-        condicion ::= expr_cond ((AND|OR) expr_cond)*
+# ── condicional anidado (dentro de cuerpo) ────────────────────────────
 
-        Retorna:
-            (texto_legible: str,  sensores: list[(nombre, op, valor)])
+def p_if_inner_open(p):
+    """if_inner_open : IF condicion THEN"""
+    texto, sensores = p[2]
+    ind = "    "
+    _st.volcar(ind)          # vaciar actuadores pendientes del nivel padre
+    _st.emit(f'{ind}<div style="{CSS_SECCION}">')
+    _st.emit(f"{ind}  <h3>Si: {texto}</h3>")
+    for tok_s, tok_op, tok_v in sensores:
+        _st.bloque_sensor(tok_s, tok_op, tok_v, ind + "  ")
+    _st.push_acum()
+    p[0] = ind
 
-        El texto se usa para el <h2>/<h3> del disparador.
-        La lista de sensores se usa para emitir los bloques verdes.
-        El HTML NO se emite aquí — se emite en el llamador que ya
-        conoce la indentación correcta.
-        """
-        texto, sensores = self._expr_cond()
+def p_else_inner_open(p):
+    """else_inner_open : ELSE"""
+    _st.volcar("      ")
+    _st.pop_acum()
+    _st.emit("    </div>")
+    _st.emit(f'    <div style="{CSS_SECCION}">')
+    _st.emit("      <h3>En caso contrario:</h3>")
+    _st.push_acum()
 
-        while self._es(TT.AND, TT.OR):
-            op_logic = self._avanzar().valor.upper()   # "AND" | "OR"
-            texto2, sensores2 = self._expr_cond()
-            texto   = f"{texto} {op_logic} {texto2}"
-            sensores.extend(sensores2)
+def p_condicional_inner_then(p):
+    """condicional_inner : if_inner_open cuerpo END"""
+    ind = p[1]
+    _st.volcar(ind + "  ")
+    _st.pop_acum()
+    _st.emit(f"{ind}</div>")
 
-        return texto, sensores
+def p_condicional_inner_then_else(p):
+    """condicional_inner : if_inner_open cuerpo else_inner_open cuerpo END"""
+    _st.volcar("      ")
+    _st.pop_acum()
+    _st.emit("    </div>")
 
-    # ──────────────────────────────────────────────────────────────
-    #  expresión de condición simple
-    # ──────────────────────────────────────────────────────────────
 
-    def _expr_cond(self) -> tuple:
-        """
-        expr_cond ::= NOT expr_cond
-                    | TRUE | FALSE | ON | OFF
-                    | SENSOR op_cmp valor_literal
-                    | ACTUADOR PUNTO ATTR op_cmp valor_literal
+# ── asignacion dentro de cuerpo ───────────────────────────────────────
 
-        Retorna (texto_legible, sensores_encontrados).
-        No emite HTML — devuelve los datos al llamador.
-        """
-        # NOT expr_cond
-        if self._es(TT.NOT):
-            self._avanzar()
-            texto, sensores = self._expr_cond()
-            return f"NOT {texto}", sensores
+def p_asignacion(p):
+    """asignacion : actuador PUNTO attr OP_ASIG valor_asig"""
+    # p[1]=Token actuador, p[2]=Token PUNTO, p[3]=Token attr,
+    # p[4]=Token OP_ASIG,  p[5]=Token valor
+    tok_act, tok_attr, tok_val = p[1], p[3], p[5]
+    _st.chk_attr(tok_act, tok_attr, tok_val, es_lectura=False)
+    li = _st.html_item(tok_attr, tok_val)
+    _st.anotar(tok_act.valor, li)
 
-        # Booleano puro
-        if self._es(TT.TRUE, TT.FALSE, TT.ON, TT.OFF):
-            tok = self._avanzar()
-            return tok.valor.upper(), []
 
-        # SENSOR op valor
-        if self._es(TT.SENSOR):
-            tok_s  = self._avanzar()
-            tok_op = self._consumir(*TIPOS_OP_CMP)
-            tok_v  = self._valor_literal()
+# ── asignacion a nivel raíz ───────────────────────────────────────────
 
-            # Validar que el tipo del valor sea compatible con el sensor
-            prefijo = self._prefijo_sensor(tok_s.valor)
-            tipos_validos = TIPOS_VALOR_SENSOR.get(prefijo)
-            if tipos_validos and tok_v.tipo not in tipos_validos:
-                nombre_validos = _NOMBRE_TIPO_SENSOR.get(prefijo, "valor compatible")
-                self.errores.append(
-                    f"Error semantico  | Linea {tok_v.linea:3d}, Col {tok_v.col:3d} "
-                    f"| '{tok_v.valor}' no es valido para '{tok_s.valor}' "
-                    f"-> se esperaba {nombre_validos}"
-                )
+def p_asignacion_suelta(p):
+    """asignacion_suelta : actuador PUNTO attr OP_ASIG valor_asig"""
+    tok_act, tok_attr, tok_val = p[1], p[3], p[5]
+    _st.chk_attr(tok_act, tok_attr, tok_val, es_lectura=False)
+    li = _st.html_item(tok_attr, tok_val)
+    _st.emit(f'  <div style="{CSS_ACTUADOR}">')
+    _st.emit(f"    <h1>{tok_act.valor}</h1>")
+    _st.emit(f"    <ul>")
+    _st.emit(f"      {li}")
+    _st.emit(f"    </ul>")
+    _st.emit(f"  </div>")
 
-            op_txt = _OP_TEXTO.get(tok_op.tipo, tok_op.valor)
-            texto  = f"{tok_s.valor} {op_txt} {tok_v.valor}"
-            sensor = (tok_s.valor, tok_op.tipo, tok_v.valor)
-            return texto, [sensor]
 
-        # ACTUADOR PUNTO ATTR op valor
-        if self._es(TT.ACTUADOR):
-            tok_a  = self._avanzar()
-            self._consumir(TT.PUNTO)
-            tok_at = self._consumir(*TIPOS_ATTR)
-            tok_op = self._consumir(*TIPOS_OP_CMP)
-            tok_v  = self._valor_literal()
+# ── condicion ─────────────────────────────────────────────────────────
 
-            # Validar tipo (en lectura: temp_act/hora/fecha SI son legibles)
-            self._validar_tipo_atributo(tok_a.valor, tok_at, tok_v, es_lectura=True)
+def p_condicion_and(p):
+    """condicion : condicion AND expr_cond"""
+    t1, s1 = p[1]; t3, s3 = p[3]
+    p[0] = (f"{t1} AND {t3}", s1 + s3)
 
-            op_txt = _OP_TEXTO.get(tok_op.tipo, tok_op.valor)
-            texto  = f"{tok_a.valor}.{tok_at.valor} {op_txt} {tok_v.valor}"
-            return texto, []   # actuadores en condición no generan bloque verde
+def p_condicion_or(p):
+    """condicion : condicion OR expr_cond"""
+    t1, s1 = p[1]; t3, s3 = p[3]
+    p[0] = (f"{t1} OR {t3}", s1 + s3)
 
-        raise ErrorSintactico(
-            "Condicion invalida: se esperaba SENSOR, ACTUADOR, NOT o booleano",
-            self._actual(),
+def p_condicion_simple(p):
+    """condicion : expr_cond"""
+    p[0] = p[1]
+
+def p_expr_not(p):
+    """expr_cond : NOT expr_cond"""
+    texto, sens = p[2]
+    p[0] = (f"NOT {texto}", sens)
+
+def p_expr_bool(p):
+    """expr_cond : TRUE
+                 | FALSE
+                 | ON
+                 | OFF"""
+    p[0] = (p[1].valor, [])
+
+def p_expr_sensor(p):
+    """expr_cond : sensor op_cmp valor_literal"""
+    tok_s, tok_op, tok_v = p[1], p[2], p[3]
+    op_txt = _OP_TEXTO.get(tok_op.tipo, tok_op.valor)
+    _st.chk_sensor(tok_s, tok_v)
+    p[0] = (
+        f"{tok_s.valor} {op_txt} {tok_v.valor}",
+        [(tok_s, tok_op, tok_v)],   # tripla de Tokens para html_sensor
+    )
+
+def p_expr_actuador(p):
+    """expr_cond : actuador PUNTO attr op_cmp valor_literal"""
+    tok_act, tok_attr, tok_op, tok_val = p[1], p[3], p[4], p[5]
+    op_txt = _OP_TEXTO.get(tok_op.tipo, tok_op.valor)
+    _st.chk_attr(tok_act, tok_attr, tok_val, es_lectura=True)
+    p[0] = (
+        f"{tok_act.valor}.{tok_attr.valor} {op_txt} {tok_val.valor}",
+        [],
+    )
+
+
+# ── grupos de terminales ──────────────────────────────────────────────
+
+def p_sensor(p):
+    """sensor : SENSOR_TEMP
+              | SENSOR_HUMEDAD
+              | SENSOR_LUZ
+              | SENSOR_MOVIMIENTO
+              | SENSOR_HUMO"""
+    p[0] = p[1]   
+
+def p_actuador(p):
+    """actuador : ACT_FOCO
+                | ACT_AIRE
+                | ACT_PERSIANA
+                | ACT_CERRADURA
+                | ACT_RELOJ
+                | ACT_ALTAVOZ
+                | ACT_ALARMA"""
+    p[0] = p[1]
+
+def p_attr(p):
+    """attr : ATTR_ESTADO
+            | ATTR_BRILLO
+            | ATTR_COLOR
+            | ATTR_MODO
+            | ATTR_TEMP_OBJ
+            | ATTR_TEMP_ACT
+            | ATTR_POSICION
+            | ATTR_HORA
+            | ATTR_FECHA
+            | ATTR_VOLUMEN
+            | ATTR_MUTE
+            | ATTR_MENSAJE
+            | ATTR_EMAIL_NOTIF
+            | ATTR_ACTIVADA
+            | ATTR_GENERICO"""
+    p[0] = p[1]
+
+def p_op_cmp(p):
+    """op_cmp : OP_EQ
+              | OP_NEQ
+              | OP_GT
+              | OP_LT
+              | OP_GTE
+              | OP_LTE"""
+    p[0] = p[1]
+
+def p_valor_asig(p):
+    """valor_asig : TEMPERATURA
+                  | PORCENTAJE
+                  | ILUMINANCIA
+                  | TIEMPO
+                  | HORA
+                  | FECHA
+                  | EMAIL
+                  | CADENA
+                  | ON
+                  | OFF
+                  | TRUE
+                  | FALSE
+                  | FRIO
+                  | CALOR
+                  | VENT
+                  | BLANCO
+                  | ROJO
+                  | AZUL
+                  | ENTERO
+                  | FLOTANTE
+                  | IDENTIFICADOR"""
+    p[0] = p[1]
+
+def p_valor_literal(p):
+    """valor_literal : TEMPERATURA
+                     | PORCENTAJE
+                     | ILUMINANCIA
+                     | TIEMPO
+                     | HORA
+                     | FECHA
+                     | ON
+                     | OFF
+                     | TRUE
+                     | FALSE
+                     | FRIO
+                     | CALOR
+                     | VENT
+                     | BLANCO
+                     | ROJO
+                     | AZUL
+                     | ENTERO
+                     | FLOTANTE
+                     | IDENTIFICADOR"""
+    p[0] = p[1]
+
+
+# ── error ─────────────────────────────────────────────────────────────
+
+def p_error(p):
+    """
+    Manejador de errores sintácticos de PLY.
+
+    IMPORTANTE: a diferencia de las reglas de gramática normales
+    (donde PLY desempaqueta automáticamente .value y p[i] ya es el
+    Token de lexer_v4), en p_error el parámetro `p` es el _PLYToken
+    CRUDO tal como lo construyó el LexerAdaptador. Por eso acá hay
+    que acceder explícitamente a `p.value` para llegar al Token real
+    con sus campos .tipo/.valor/.linea/.col.
+    """
+    if p is None:
+        _st.errores_sint.append(
+            "Error sintactico | Fin de archivo inesperado"
         )
-
-    # ──────────────────────────────────────────────────────────────
-    #  asignacion  (acumula en el dict, NO emite HTML)
-    # ──────────────────────────────────────────────────────────────
-
-    def _asignacion(self, acum: "OrderedDict[str, List[str]]"):
-        """
-        asignacion ::= ACTUADOR PUNTO ATTR OP_ASIG valor_asig
-
-        Acción semántica: en lugar de emitir HTML, construye el
-        string <li> y lo deposita en acum[nombre_actuador].
-        El HTML del <div> completo se emite luego en _volcar_actuadores().
-
-        Este es el mecanismo central del agrupamiento en una pasada:
-        las asignaciones se 'recuerdan' hasta que se cierra el bloque.
-        """
-        tok_act  = self._consumir(TT.ACTUADOR)
-        self._consumir(TT.PUNTO)
-        tok_attr = self._consumir(*TIPOS_ATTR)
-        self._consumir(TT.OP_ASIG)
-        tok_val  = self._valor_asig()
-
-        nombre = tok_act.valor
-        self._validar_tipo_atributo(nombre, tok_attr, tok_val, es_lectura=False)
-
-        li = self._html_item(tok_attr.valor, tok_val.tipo, tok_val.valor)
-
-        # Inicializar la entrada del actuador si no existe todavía
-        if nombre not in acum:
-            acum[nombre] = []
-        acum[nombre].append(li)
-
-    # ──────────────────────────────────────────────────────────────
-    #  valores
-    # ──────────────────────────────────────────────────────────────
-
-    def _valor_asig(self) -> Token:
-        """Acepta cualquier literal + CADENA + EMAIL (lado derecho de =)."""
-        if self._es(*TIPOS_VALOR, TT.CADENA, TT.EMAIL):
-            return self._avanzar()
-        raise ErrorSintactico(
-            "Se esperaba un valor (literal, cadena o email)",
-            self._actual(),
-        )
-
-    def _valor_literal(self) -> Token:
-        """Acepta literales sin CADENA/EMAIL (usado en condiciones)."""
-        if self._es(*TIPOS_VALOR):
-            return self._avanzar()
-        raise ErrorSintactico(
-            "Se esperaba un valor literal",
-            self._actual(),
+    else:
+        tok = p.value   # .value es el Token completo de lexer_v4
+        _st.errores_sint.append(
+            f"Error sintactico | Linea {tok.linea:3d}, Col {tok.col:3d} "
+            f"| Token inesperado: '{tok.valor}' [{tok.tipo}]"
         )
 
 
 # ======================================================================
-#  4. FUNCIÓN DE COMPILACIÓN
+#  7. CONSTRUIR PARSER PLY
+# ======================================================================
+
+_parser = yacc.yacc(debug=False, write_tables=False)
+
+
+# ======================================================================
+#  8. CABECERA Y CIERRE HTML
+# ======================================================================
+
+def _cabecera(titulo: str):
+    _st.emit("<!DOCTYPE html>")
+    _st.emit('<html lang="es">')
+    _st.emit("<head>")
+    _st.emit('  <meta charset="UTF-8">')
+    _st.emit('  <meta name="viewport" content="width=device-width,initial-scale=1.0">')
+    _st.emit(f"  <title>Smart Home — {titulo}</title>")
+    _st.emit("  <style>")
+    _st.emit("    body{font-family:Arial,sans-serif;max-width:900px;"
+             "margin:40px auto;padding:0 20px;background:#f9f9f9;color:#222}")
+    _st.emit("    h1{color:#333} h2{color:#2a6496} h3{color:#555;font-style:italic}")
+    _st.emit("    ul{margin:8px 0;padding-left:20px} li{margin:4px 0}")
+    _st.emit("    a{color:#c0392b}")
+    _st.emit("  </style>")
+    _st.emit("</head>")
+    _st.emit("<body>")
+    _st.emit(f"  <h1>Dashboard Smart Home — {titulo}</h1>")
+
+def _cierre():
+    _st.emit("</body>")
+    _st.emit("</html>")
+
+
+# ======================================================================
+#  9. FUNCIÓN PRINCIPAL DE COMPILACIÓN
 # ======================================================================
 
 def compilar(fuente: str, nombre_archivo: str):
     """
-    Pipeline de dos fases (en lugar de cuatro):
-
-      fuente → Lexer → tokens → ParserHTML → HTML
-
-    Retorna (html_str, errores_lexicos, advertencias_lexicas, errores_sintacticos)
+    Retorna (html, errores_lex, advertencias_lex, errores_sint, errores_sem)
     """
-    # Fase 1: análisis léxico
+    global _st
+    _st = _Estado()
+    _st.reset(nombre_archivo)
+
+    # Fase 1: léxico manual
     lexer  = SmartHomeLexer()
-    tokens = lexer.tokenizar(fuente)
+    tokens_lex = lexer.tokenizar(fuente)
 
-    # Fase 2: análisis sintáctico + traducción HTML en una sola pasada
-    parser = ParserHTML(tokens, titulo=nombre_archivo)
-    html   = parser.parsear()
+    # Fase 2: cabecera HTML
+    _cabecera(nombre_archivo)
 
-    return html, lexer.errores, lexer.advertencias, parser.errores
+    # Fase 3: parser PLY
+    adaptador = LexerAdaptador(tokens_lex)
+    _parser.parse(None, lexer=adaptador, tracking=False)
+
+    # Cierre HTML
+    _cierre()
+
+    return (
+        _st.html(),
+        lexer.errores,
+        lexer.advertencias,
+        _st.errores_sint,
+        _st.errores_sem,
+    )
 
 
 # ======================================================================
-#  5. MODO ARCHIVO
+#  10. MODO ARCHIVO
 # ======================================================================
 
-def modo_archivo(ruta_entrada: str) -> None:
-    if not os.path.exists(ruta_entrada):
-        print(f"Error de ejecucion | El archivo '{ruta_entrada}' no existe.")
-        sys.exit(1)
-
-    _, ext = os.path.splitext(ruta_entrada)
+def modo_archivo(ruta: str) -> None:
+    if not os.path.exists(ruta):
+        print(f"Error: '{ruta}' no existe."); sys.exit(1)
+    _, ext = os.path.splitext(ruta)
     if ext.lower() != ".smart":
-        print(f"Error de ejecucion | Extension incorrecta '{ext}'. "
-              "Se esperaba '.smart'.")
-        sys.exit(1)
+        print(f"Error: extension incorrecta '{ext}'."); sys.exit(1)
 
-    with open(ruta_entrada, "r", encoding="utf-8") as f:
+    with open(ruta, "r", encoding="utf-8") as f:
         fuente = f.read()
 
-    nombre_base = os.path.splitext(os.path.basename(ruta_entrada))[0]
-    ruta_html   = os.path.splitext(ruta_entrada)[0] + ".html"
-
+    nombre = os.path.splitext(os.path.basename(ruta))[0]
+    ruta_html = os.path.splitext(ruta)[0] + ".html"
     sep = "=" * 67
+
     print(sep)
-    print("  SMART-HOME Parser (una pasada) + Traductor HTML")
-    print(f"  Entrada : {ruta_entrada}")
+    print("  SMART-HOME Parser PLY + Lexer manual")
+    print(f"  Entrada : {ruta}")
     print(f"  Salida  : {ruta_html}")
     print(sep)
 
-    html, err_lex, adv_lex, err_sint = compilar(fuente, nombre_base)
+    html, err_lex, adv_lex, err_sint, err_sem = compilar(fuente, nombre)
 
-    hay_errores = bool(err_lex or err_sint or adv_lex)
+    hay_error = bool(err_lex or adv_lex or err_sint or err_sem)
 
     if err_lex:
         print(f"\n  [ERRORES LEXICOS: {len(err_lex)}]")
-        for e in err_lex:
-            print(f"    {e}")
-
+        for e in err_lex: print(f"    {e}")
     if adv_lex:
         print(f"\n  [ADVERTENCIAS DE RANGO: {len(adv_lex)}]")
-        for a in adv_lex:
-            print(f"    {a}")
-
+        for a in adv_lex: print(f"    {a}")
     if err_sint:
         print(f"\n  [ERRORES SINTACTICOS: {len(err_sint)}]")
-        for e in err_sint:
-            print(f"    {e}")
+        for e in err_sint: print(f"    {e}")
+    if err_sem:
+        print(f"\n  [ERRORES SEMANTICOS: {len(err_sem)}]")
+        for e in err_sem: print(f"    {e}")
 
     print()
-    if hay_errores:
-        # Con errores no se genera ningun archivo HTML
-        print(f"  ERROR  Analisis fallido -- no se genero HTML.")
-        print(f"         Corrija los errores indicados e intente nuevamente.")
+    if hay_error:
+        print("  ERROR  Analisis fallido — no se genero HTML.")
         sys.exit(2)
 
-    # Sin errores: escribir el HTML
     with open(ruta_html, "w", encoding="utf-8") as f:
         f.write(html)
-
-    print(f"  OK  Analisis exitoso. HTML generado en: {ruta_html}")
+    print(f"  OK  HTML generado en: {ruta_html}")
 
 
 # ======================================================================
-#  6. MODO INTERACTIVO
+#  11. MODO INTERACTIVO
 # ======================================================================
 
-def modo_interactivo() -> None:
-    sep = "=" * 67
-    print(sep)
-    print("  SMART-HOME Parser (una pasada)  —  Modo Interactivo")
-    print("  Escriba instrucciones SMART-HOME.")
-    print("  Linea en blanco para parsear el bloque ingresado.")
-    print("  'salir' para terminar.")
-    print(sep)
-
-    lineas    = []
-    num_linea = 1
-
+def modo_interactivo():
+    print("=" * 67)
+    print("  SMART-HOME Parser PLY — Modo Interactivo")
+    print("  Linea en blanco para compilar. 'salir' para terminar.")
+    print("=" * 67)
+    lineas, num = [], 1
     while True:
         try:
-            linea = input(f"[{num_linea:3d}] >>> ")
+            linea = input(f"[{num:3d}] >>> ")
         except (EOFError, KeyboardInterrupt):
             break
-
-        if linea.strip().lower() in ("salir", "exit", "quit"):
-            break
-
+        if linea.strip().lower() in ("salir", "exit"): break
         if linea.strip() == "" and lineas:
             fuente = "\n".join(lineas)
-            html, err_lex, adv_lex, err_sint = compilar(fuente, "interactivo")
-
+            html, el, al, es, esem = compilar(fuente, "interactivo")
             print("\n--- RESULTADO ---")
-            for e in err_lex:   print(f"  [LEX] {e}")
-            for a in adv_lex:   print(f"  [AVS] {a}")
-            for e in err_sint:  print(f"  [SIN] {e}")
-            if not err_lex and not err_sint:
-                print("  OK  Sin errores.")
-                print("\n--- HTML GENERADO ---")
+            for e in el:   print(f"  [LEX] {e}")
+            for a in al:   print(f"  [AVS] {a}")
+            for e in es:   print(f"  [SIN] {e}")
+            for e in esem: print(f"  [SEM] {e}")
+            if not el and not al and not es and not esem:
+                print("  OK  Sin errores.\n--- HTML ---")
                 print(html)
-
-            lineas    = []
-            num_linea = 1
-            print()
+            lineas, num = [], 1; print()
         else:
-            lineas.append(linea)
-            num_linea += 1
+            lineas.append(linea); num += 1
 
 
 # ======================================================================
-#  7. SELECTOR DE ARCHIVO (GUI — tkinter)
+#  12. PUNTO DE ENTRADA
 # ======================================================================
 
 def seleccionar_archivo_gui() -> Optional[str]:
@@ -919,51 +805,26 @@ def seleccionar_archivo_gui() -> Optional[str]:
         import tkinter as tk
         from tkinter import filedialog
     except ImportError:
-        print("Error: tkinter no disponible. Use: python parser_una_pasada.py archivo.smart")
         return None
-
-    root = tk.Tk()
-    root.withdraw()
-    root.lift()
-    root.focus_force()
-
+    root = tk.Tk(); root.withdraw(); root.lift(); root.focus_force()
     ruta = filedialog.askopenfilename(
-        title      = "Seleccionar archivo SMART-HOME",
-        initialdir = os.getcwd(),
-        filetypes  = [
-            ("Archivos SMART-HOME", "*.smart"),
-            ("Todos los archivos",  "*.*"),
-        ],
+        title="SMART-HOME — Seleccionar archivo",
+        initialdir=os.getcwd(),
+        filetypes=[("Archivos SMART-HOME", "*.smart"), ("Todos", "*.*")],
     )
     root.destroy()
     return ruta if ruta else None
 
-
-# ======================================================================
-#  8. PUNTO DE ENTRADA
-# ======================================================================
-
 def main():
     if len(sys.argv) == 1:
-        print("Abriendo selector de archivo...")
         ruta = seleccionar_archivo_gui()
-        if ruta:
-            modo_archivo(ruta)
-        else:
-            print("No se selecciono archivo. Iniciando modo interactivo.\n")
-            modo_interactivo()
-
+        if ruta: modo_archivo(ruta)
+        else: modo_interactivo()
     elif len(sys.argv) == 2:
-        if sys.argv[1] == "--interactivo":
-            modo_interactivo()
-        else:
-            modo_archivo(sys.argv[1])
-
+        if sys.argv[1] == "--interactivo": modo_interactivo()
+        else: modo_archivo(sys.argv[1])
     else:
-        print("Uso:")
-        print("  python parser_una_pasada.py                  # selector grafico")
-        print("  python parser_una_pasada.py archivo.smart    # ruta directa")
-        print("  python parser_una_pasada.py --interactivo    # modo consola")
+        print("Uso: python parser_ply.py [archivo.smart | --interactivo]")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -3,178 +3,145 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Documentación — SMART-HOME Lexer v3 & Parser (una pasada)</title>
+  <title>Documentación — SMART-HOME Lexer v4 & Parser PLY</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg:#0e0f14; --bg2:#15161e; --bg3:#1c1d28; --border:#2a2b3d;
-      --a1:#7c6af7; --a2:#3ecfb2; --a3:#f7a24b; --a4:#e05c7a;
-      --txt:#dde1f0; --txt2:#8890b0; --txt3:#555e80; --code:#111320;
-      --lc:#3ecfb2; --pc:#7c6af7;
-      --fh:'Syne',sans-serif; --fc:'JetBrains Mono',monospace; --r:8px;
-    }
+    :root{--bg:#0e0f14;--bg2:#15161e;--bg3:#1c1d28;--bd:#2a2b3d;--a1:#7c6af7;--a2:#3ecfb2;--a3:#f7a24b;--a4:#e05c7a;--txt:#dde1f0;--txt2:#8890b0;--txt3:#555e80;--code:#111320;--lc:#3ecfb2;--pc:#7c6af7;--fh:'Syne',sans-serif;--fc:'JetBrains Mono',monospace;--r:8px}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{scroll-behavior:smooth}
     body{background:var(--bg);color:var(--txt);font-family:var(--fh);font-size:15px;line-height:1.7;display:flex;min-height:100vh}
-
-    /* sidebar */
-    #sb{width:265px;min-width:265px;background:var(--bg2);border-right:1px solid var(--border);padding:28px 0;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
-    #sb .logo{padding:0 24px 22px;border-bottom:1px solid var(--border);margin-bottom:14px}
+    #sb{width:270px;min-width:270px;background:var(--bg2);border-right:1px solid var(--bd);padding:28px 0;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
+    #sb .logo{padding:0 24px 20px;border-bottom:1px solid var(--bd);margin-bottom:14px}
     #sb .logo h1{font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--a1)}
     #sb .logo p{font-size:11px;color:var(--txt3);margin-top:3px;font-family:var(--fc)}
     .ng{margin-bottom:6px}
     .nl{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:8px 24px 3px;color:var(--txt3)}
-    .nl.lx{color:var(--lc)} .nl.pr{color:var(--pc)} .nl.ch{color:var(--a3)}
+    .nl.lx{color:var(--lc)}.nl.pr{color:var(--pc)}.nl.gn{color:var(--a3)}
     .ni{display:block;padding:5px 24px 5px 30px;font-size:12px;color:var(--txt2);text-decoration:none;border-left:2px solid transparent;transition:all .15s;font-family:var(--fc)}
-    .ni:hover{color:var(--txt);background:var(--bg3);border-left-color:var(--a1)}
-    .ni.lx:hover{border-left-color:var(--lc)} .ni.pr:hover{border-left-color:var(--pc)}
-    .ni.ch:hover{border-left-color:var(--a3)} .ni.active{color:var(--txt);border-left-color:var(--a1);background:var(--bg3)}
-
-    /* main */
+    .ni:hover,.ni.active{color:var(--txt);background:var(--bg3);border-left-color:var(--a1)}
+    .ni.lx:hover,.ni.lx.active{border-left-color:var(--lc)}
+    .ni.pr:hover,.ni.pr.active{border-left-color:var(--pc)}
     #main{flex:1;padding:48px 56px;max-width:980px}
-
-    /* hero */
-    .hero{margin-bottom:60px;padding-bottom:40px;border-bottom:1px solid var(--border)}
+    .hero{margin-bottom:60px;padding-bottom:40px;border-bottom:1px solid var(--bd)}
     .hero .tag{display:inline-block;font-family:var(--fc);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--a2);border:1px solid var(--a2);border-radius:4px;padding:3px 10px;margin-bottom:14px}
     .hero h1{font-size:34px;font-weight:800;line-height:1.2;margin-bottom:10px;letter-spacing:-.01em}
-    .hero h1 span{color:var(--a1)} .hero p{font-size:15px;color:var(--txt2);max-width:640px}
-
-    /* diff pills */
-    .diff-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
-    .diff-pill{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:12px;font-family:var(--fc)}
-    .diff-pill.removed .icon{color:var(--a4)} .diff-pill.added .icon{color:var(--a2)} .diff-pill.changed .icon{color:var(--a3)}
-    .diff-pill .icon{font-size:16px;font-weight:800} .diff-pill .txt{color:var(--txt2)}
-
-    /* section */
+    .hero h1 span{color:var(--a1)}.hero p{font-size:15px;color:var(--txt2);max-width:640px}
+    .diff-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+    .dp{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:7px 13px;font-size:12px;font-family:var(--fc)}
+    .dp.add .ic{color:var(--a2)}.dp.chg .ic{color:var(--a3)}.dp.rem .ic{color:var(--a4)}
+    .dp .ic{font-size:15px;font-weight:800}.dp .tx{color:var(--txt2)}
     .section{margin-bottom:60px;scroll-margin-top:32px}
-    .sh{display:flex;align-items:center;gap:14px;margin-bottom:26px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+    .sh{display:flex;align-items:center;gap:14px;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--bd)}
     .sb2{font-family:var(--fc);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:4px;flex-shrink:0}
-    .bl{background:rgba(62,207,178,.15);color:var(--lc)} .bp{background:rgba(124,106,247,.15);color:var(--pc)}
-    .bg{background:rgba(247,162,75,.15);color:var(--a3)} .br{background:rgba(224,92,122,.15);color:var(--a4)}
+    .bl{background:rgba(62,207,178,.15);color:var(--lc)}.bp{background:rgba(124,106,247,.15);color:var(--pc)}
+    .bg{background:rgba(247,162,75,.15);color:var(--a3)}
     .sh h2{font-size:21px;font-weight:700;letter-spacing:-.01em}
-
-    /* fn card */
-    .fc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:18px;overflow:hidden;transition:border-color .2s}
-    .fc:hover{border-color:var(--a1)} .fc.lx:hover{border-color:var(--lc)} .fc.pr:hover{border-color:var(--pc)}
-    .fc.new{border-color:var(--a2)} .fc.new:hover{border-color:var(--a2);box-shadow:0 0 14px rgba(62,207,178,.15)}
-    .fc.key{border-color:var(--a3)} .fc.key:hover{border-color:var(--a3);box-shadow:0 0 14px rgba(247,162,75,.18)}
-    .fc.gone{border-color:var(--a4);opacity:.75}
-    .fh2{display:flex;align-items:center;gap:10px;padding:13px 18px;background:var(--bg3);cursor:pointer;user-select:none}
+    .fc{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:16px;overflow:hidden;transition:border-color .2s}
+    .fc:hover{border-color:var(--a1)}.fc.lx:hover{border-color:var(--lc)}.fc.pr:hover{border-color:var(--pc)}
+    .fc.new{border-color:var(--a2)}.fc.new:hover{border-color:var(--a2);box-shadow:0 0 12px rgba(62,207,178,.15)}
+    .fc.key{border-color:var(--a3)}.fc.key:hover{box-shadow:0 0 12px rgba(247,162,75,.18)}
+    .fh2{display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--bg3);cursor:pointer;user-select:none}
     .fk{font-family:var(--fc);font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:.08em;flex-shrink:0}
-    .km{background:rgba(62,207,178,.2);color:var(--lc)} .kf{background:rgba(247,162,75,.2);color:var(--a3)}
-    .kc{background:rgba(124,106,247,.2);color:var(--pc)} .kd{background:rgba(224,92,122,.2);color:var(--a4)}
-    .kk{background:rgba(247,162,75,.28);color:var(--a3);font-weight:800} .kn{background:rgba(62,207,178,.28);color:var(--a2);font-weight:800}
+    .km{background:rgba(62,207,178,.2);color:var(--lc)}.kf{background:rgba(247,162,75,.2);color:var(--a3)}
+    .kc{background:rgba(124,106,247,.2);color:var(--pc)}.kd{background:rgba(224,92,122,.2);color:var(--a4)}
+    .kn{background:rgba(62,207,178,.28);color:var(--a2);font-weight:800}.kk{background:rgba(247,162,75,.28);color:var(--a3);font-weight:800}
     .fn{font-family:var(--fc);font-size:13px;font-weight:600;color:var(--txt);flex:1}
     .fb2{font-size:12px;color:var(--txt2);flex:2;font-family:var(--fc)}
     .ft{color:var(--txt3);font-size:18px;transition:transform .2s;flex-shrink:0}
     .fc.open .ft{transform:rotate(90deg)}
-    .fb{display:none;padding:18px 22px;border-top:1px solid var(--border)}
+    .fb{display:none;padding:18px 22px;border-top:1px solid var(--bd)}
     .fc.open .fb{display:block}
-
-    /* content elements */
-    .fd{color:var(--txt);margin-bottom:14px;font-size:14px}
-    .fs{background:var(--code);border:1px solid var(--border);border-radius:var(--r);padding:11px 15px;font-family:var(--fc);font-size:12.5px;color:var(--a2);margin-bottom:14px;overflow-x:auto;white-space:pre}
-    .pt{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px}
-    .pt th{text-align:left;padding:6px 12px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);border-bottom:1px solid var(--border);font-family:var(--fc)}
-    .pt td{padding:7px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+    .fd{color:var(--txt);margin-bottom:12px;font-size:14px}
+    .fs{background:var(--code);border:1px solid var(--bd);border-radius:var(--r);padding:11px 15px;font-family:var(--fc);font-size:12.5px;color:var(--a2);margin-bottom:12px;overflow-x:auto;white-space:pre}
+    .pt{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px}
+    .pt th{text-align:left;padding:6px 12px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);border-bottom:1px solid var(--bd);font-family:var(--fc)}
+    .pt td{padding:7px 12px;border-bottom:1px solid var(--bd);vertical-align:top}
     .pt tr:last-child td{border-bottom:none}
-    .pn{font-family:var(--fc);color:var(--a3)} .pty{font-family:var(--fc);color:var(--lc);font-size:12px} .pd{color:var(--txt2)}
+    .pn{font-family:var(--fc);color:var(--a3)}.pty{font-family:var(--fc);color:var(--lc);font-size:12px}.pd{color:var(--txt2)}
     .rb{background:var(--code);border-left:3px solid var(--a2);padding:9px 13px;border-radius:0 var(--r) var(--r) 0;font-size:13px;margin-bottom:12px}
     .rl{font-family:var(--fc);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);margin-bottom:3px}
     .rv{font-family:var(--fc);color:var(--a2)}
     .nb{background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.25);border-radius:var(--r);padding:11px 15px;font-size:13px;color:var(--txt2);margin-top:10px}
     .nb strong{color:var(--a1)}
-    .kb{background:rgba(247,162,75,.07);border:1px solid rgba(247,162,75,.3);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--txt2);margin:14px 0}
+    .kb{background:rgba(247,162,75,.07);border:1px solid rgba(247,162,75,.3);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--txt2);margin:12px 0}
     .kb strong{color:var(--a3)}
-    .newb{background:rgba(62,207,178,.07);border:1px solid rgba(62,207,178,.3);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--txt2);margin:14px 0}
+    .newb{background:rgba(62,207,178,.07);border:1px solid rgba(62,207,178,.3);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--txt2);margin:12px 0}
     .newb strong{color:var(--a2)}
-    .goneb{background:rgba(224,92,122,.07);border:1px solid rgba(224,92,122,.25);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--txt2);margin:14px 0}
+    .goneb{background:rgba(224,92,122,.07);border:1px solid rgba(224,92,122,.25);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--txt2);margin:12px 0}
     .goneb strong{color:var(--a4)}
-    .flow{background:var(--code);border:1px solid var(--border);border-radius:var(--r);padding:22px 26px;font-family:var(--fc);font-size:13px;color:var(--txt2);margin-bottom:26px;overflow-x:auto;line-height:2;white-space:pre}
-    .flow .h1{color:var(--lc)} .flow .h2{color:var(--pc)} .flow .h3{color:var(--a3)} .flow .h4{color:var(--a4)}
-    .dt{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:22px}
-    .dt th{text-align:left;padding:7px 13px;background:var(--bg3);font-family:var(--fc);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);border-bottom:1px solid var(--border)}
-    .dt td{padding:8px 13px;border-bottom:1px solid var(--border);vertical-align:top}
-    .dt tr:last-child td{border-bottom:none} .dt tr:hover td{background:var(--bg3)}
-    .tt{font-family:var(--fc);color:var(--a3);font-size:12px} .ex{font-family:var(--fc);color:var(--lc);font-size:12px}
-    h3{font-size:15px;font-weight:700;color:var(--txt);margin:22px 0 10px}
+    .flow{background:var(--code);border:1px solid var(--bd);border-radius:var(--r);padding:20px 24px;font-family:var(--fc);font-size:13px;color:var(--txt2);margin-bottom:22px;overflow-x:auto;line-height:2;white-space:pre}
+    .flow .h1{color:var(--lc)}.flow .h2{color:var(--pc)}.flow .h3{color:var(--a3)}.flow .h4{color:var(--a4)}
+    .dt{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px}
+    .dt th{text-align:left;padding:7px 13px;background:var(--bg3);font-family:var(--fc);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);border-bottom:1px solid var(--bd)}
+    .dt td{padding:8px 13px;border-bottom:1px solid var(--bd);vertical-align:top}
+    .dt tr:last-child td{border-bottom:none}.dt tr:hover td{background:var(--bg3)}
+    .tt{font-family:var(--fc);color:var(--a3);font-size:12px}.ex{font-family:var(--fc);color:var(--lc);font-size:12px}
+    h3{font-size:15px;font-weight:700;color:var(--txt);margin:20px 0 10px}
     p{color:var(--txt2);margin-bottom:10px;font-size:14px}
-    code{font-family:var(--fc);font-size:12px;background:var(--code);border:1px solid var(--border);padding:2px 6px;border-radius:4px;color:var(--a3)}
-    ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    code{font-family:var(--fc);font-size:12px;background:var(--code);border:1px solid var(--bd);padding:2px 6px;border-radius:4px;color:var(--a3)}
+    ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
   </style>
 </head>
 <body>
-
-<!-- ══ SIDEBAR ══ -->
 <nav id="sb">
-  <div class="logo">
-    <h1>SMART-HOME</h1>
-    <p>Lexer v3 & Parser — Docs</p>
+  <div class="logo"><h1>SMART-HOME</h1><p>Lexer v4 + Parser PLY</p></div>
+  <div class="ng"><div class="nl gn">General</div>
+    <a class="ni" href="#pipeline">Pipeline completo</a>
+    <a class="ni" href="#gramatica">Gramática con acciones</a>
+    <a class="ni" href="#tokens-tabla">Tabla de tokens</a>
+    <a class="ni" href="#rangos">Rangos nombrados</a>
   </div>
-  <div class="ng"><div class="nl">General</div>
-    <a class="ni" href="#cambios">Resumen de cambios</a>
-    <a class="ni" href="#clases">Clases utilizadas</a>
-    <a class="ni" href="#pipeline">Pipeline v3</a>
-    <a class="ni" href="#tokens">Tabla de tokens</a>
-  </div>
-  <div class="ng"><div class="nl lx">Lexer — lexer.py</div>
+  <div class="ng"><div class="nl lx">Lexer — lexer.py v4</div>
     <a class="ni lx" href="#tt">clase TT</a>
     <a class="ni lx" href="#token">clase Token</a>
-    <a class="ni lx" href="#tablas">Tablas de clasificación</a>
-    <a class="ni lx" href="#rangos">Rangos nombrados</a>
-    <a class="ni lx" href="#helpers-char">★ Helpers de caracteres (nuevas)</a>
-    <a class="ni lx" href="#leer-comentario">  _leer_comentario()</a>
-    <a class="ni lx" href="#leer-cadena">  _leer_cadena()</a>
-    <a class="ni lx" href="#leer-numero">  _leer_numero()</a>
-    <a class="ni lx" href="#extraer-numero">  _extraer_numero()</a>
-    <a class="ni lx" href="#leer-temperatura">  _leer_temperatura()</a>
-    <a class="ni lx" href="#leer-con-sufijo">  _leer_con_sufijo()</a>
-    <a class="ni lx" href="#leer-tiempo">  _leer_tiempo()</a>
-    <a class="ni lx" href="#leer-hora">  _leer_hora()</a>
-    <a class="ni lx" href="#leer-fecha">  _leer_fecha()</a>
-    <a class="ni lx" href="#leer-email">  _leer_email()</a>
-    <a class="ni lx" href="#leer-identificador">  _leer_identificador()</a>
+    <a class="ni lx" href="#tablas-lex">Tablas de clasificación</a>
+    <a class="ni lx" href="#helpers-char">Helpers de caracteres</a>
+    <a class="ni lx" href="#distancia">★ _distancia_edicion()</a>
+    <a class="ni lx" href="#similar">  _palabra_reservada_similar()</a>
+    <a class="ni lx" href="#leer-comentario">_leer_comentario()</a>
+    <a class="ni lx" href="#leer-cadena">_leer_cadena()</a>
+    <a class="ni lx" href="#leer-numero">_leer_numero()</a>
+    <a class="ni lx" href="#extraer-numero">_extraer_numero()</a>
+    <a class="ni lx" href="#leer-temperatura">_leer_temperatura()</a>
+    <a class="ni lx" href="#leer-con-sufijo">_leer_con_sufijo()</a>
+    <a class="ni lx" href="#leer-tiempo">_leer_tiempo()</a>
+    <a class="ni lx" href="#leer-hora">_leer_hora()</a>
+    <a class="ni lx" href="#leer-fecha">_leer_fecha()</a>
+    <a class="ni lx" href="#leer-email">_leer_email()</a>
+    <a class="ni lx" href="#sufijo-sospechoso">★ _tiene_sufijo_sospechoso()</a>
+    <a class="ni lx" href="#leer-identificador">_leer_identificador()</a>
+    <a class="ni lx" href="#detectar-invalido">★ _detectar_invalido()</a>
     <a class="ni lx" href="#helpers-num">Helpers numéricos</a>
     <a class="ni lx" href="#smarthomelexer">clase SmartHomeLexer</a>
     <a class="ni lx" href="#tokenizar">  tokenizar()</a>
     <a class="ni lx" href="#tokenizar-linea">  tokenizar_linea()</a>
     <a class="ni lx" href="#procesar-linea">  _procesar_linea()</a>
     <a class="ni lx" href="#siguiente-token">★ _siguiente_token()</a>
-    <a class="ni lx" href="#clasificar">  _clasificar() ← modificada</a>
+    <a class="ni lx" href="#clasificar">★ _clasificar()</a>
     <a class="ni lx" href="#ctx">  _actualizar_ctx()</a>
-    <a class="ni lx" href="#rango">  _validar_rango()</a>
+    <a class="ni lx" href="#validar-rango">★ _validar_rango()</a>
   </div>
-  <div class="ng"><div class="nl pr">Parser — parser_una_pasada.py</div>
-    <a class="ni pr" href="#parser-intro">Qué hace este archivo</a>
-    <a class="ni pr" href="#gramatica">Gramática con acciones</a>
-    <a class="ni pr" href="#constantes-parser">Constantes y tablas</a>
-    <a class="ni pr" href="#tabla-especificacion">★ ESPECIFICACION_ATRIBUTOS</a>
-    <a class="ni pr" href="#error-sint">clase ErrorSintactico</a>
-    <a class="ni pr" href="#parserhtml">clase ParserHTML</a>
-    <a class="ni pr" href="#par-init">  __init__()</a>
-    <a class="ni pr" href="#par-cursor">  _actual() / _es()</a>
-    <a class="ni pr" href="#par-consumir">  _consumir()</a>
-    <a class="ni pr" href="#par-avanzar">  _avanzar()</a>
-    <a class="ni pr" href="#par-sincronizar">  _sincronizar()</a>
-    <a class="ni pr" href="#par-validar-attr">  ★ _validar_tipo_atributo()</a>
-    <a class="ni pr" href="#par-prefijo-act">  _prefijo_actuador()</a>
-    <a class="ni pr" href="#par-prefijo-sen">  _prefijo_sensor()</a>
-    <a class="ni pr" href="#par-emit">  _emit()</a>
-    <a class="ni pr" href="#par-html-sensor">  _html_sensor()</a>
-    <a class="ni pr" href="#par-html-actuador">  _html_actuador()</a>
-    <a class="ni pr" href="#par-html-item">  _html_item()</a>
-    <a class="ni pr" href="#par-volcar">  ★ _volcar_actuadores()</a>
-    <a class="ni pr" href="#par-parsear">  parsear()</a>
-    <a class="ni pr" href="#par-cabecera">  _emitir_cabecera/cierre()</a>
-    <a class="ni pr" href="#par-instruccion">  _instruccion()</a>
-    <a class="ni pr" href="#par-when">  _bloque_when()</a>
-    <a class="ni pr" href="#par-every">  _bloque_every()</a>
-    <a class="ni pr" href="#par-cuerpo">  ★ _cuerpo()</a>
-    <a class="ni pr" href="#par-condicional">  _condicional()</a>
-    <a class="ni pr" href="#par-condicion">  _condicion()</a>
-    <a class="ni pr" href="#par-exprcond">  ★ _expr_cond()</a>
-    <a class="ni pr" href="#par-asignacion">  ★ _asignacion()</a>
-    <a class="ni pr" href="#par-valores">  _valor_asig() / _valor_literal()</a>
+  <div class="ng"><div class="nl pr">Parser — parser_ply.py</div>
+    <a class="ni pr" href="#parser-intro">Cómo funciona PLY</a>
+    <a class="ni pr" href="#especificacion">ESPECIFICACION_ATRIBUTOS</a>
+    <a class="ni pr" href="#estado">clase _Estado</a>
+    <a class="ni pr" href="#adaptador">clase LexerAdaptador</a>
+    <a class="ni pr" href="#plytoken">clase _PLYToken</a>
+    <a class="ni pr" href="#tokens-ply">lista tokens (PLY)</a>
+    <a class="ni pr" href="#reglas-ply">Reglas gramaticales p_*</a>
+    <a class="ni pr" href="#p-programa">  p_programa / instruccion_lista</a>
+    <a class="ni pr" href="#p-when">  p_bloque_when_open / when</a>
+    <a class="ni pr" href="#p-every">  p_bloque_every_open / every</a>
+    <a class="ni pr" href="#p-cuerpo">★ p_cuerpo / accion</a>
+    <a class="ni pr" href="#p-if">  p_if_open / condicional</a>
+    <a class="ni pr" href="#p-else">  p_else_open</a>
+    <a class="ni pr" href="#p-if-inner">  p_if_inner_open / inner</a>
+    <a class="ni pr" href="#p-asig">★ p_asignacion</a>
+    <a class="ni pr" href="#p-condicion">  p_condicion_and/or</a>
+    <a class="ni pr" href="#p-expr">★ p_expr_sensor / actuador</a>
+    <a class="ni pr" href="#p-grupos">  p_sensor / actuador / attr</a>
+    <a class="ni pr" href="#p-valores">  p_valor_asig / literal</a>
+    <a class="ni pr" href="#p-error">  p_error</a>
     <a class="ni pr" href="#compilar">compilar()</a>
     <a class="ni pr" href="#modo-archivo">modo_archivo()</a>
     <a class="ni pr" href="#modo-interactivo">modo_interactivo()</a>
@@ -182,144 +149,164 @@
     <a class="ni pr" href="#main">main()</a>
   </div>
 </nav>
-
-<!-- ══ MAIN ══ -->
 <main id="main">
 
-<!-- HERO -->
 <div class="hero">
   <div class="tag">UTN FRRe — Sintaxis y Semántica de Lenguajes 2026</div>
-  <h1>Documentación <span>v3.0</span><br>SMART-HOME Lexer &amp; Parser</h1>
-  <p>Esta versión elimina completamente el módulo <code>re</code> y hace que las palabras reservadas sean case-sensitive (solo MAYÚSCULAS). Toda la lógica de reconocimiento se implementa con funciones manuales carácter a carácter.</p>
+  <h1>Documentación <span>v4.0</span><br>SMART-HOME Lexer &amp; Parser PLY</h1>
+  <p>Lexer manual sin <code>re</code>, con tokens individuales por dispositivo y detección precisa de literales inválidos. Parser PLY LALR(1) con validación semántica completa.</p>
   <div class="diff-row">
-    <div class="diff-pill removed"><span class="icon">✕</span><span class="txt">import re eliminado</span></div>
-    <div class="diff-pill removed"><span class="icon">✕</span><span class="txt">_REGEX_MASTER eliminado</span></div>
-    <div class="diff-pill removed"><span class="icon">✕</span><span class="txt">re.IGNORECASE eliminado</span></div>
-    <div class="diff-pill added"><span class="icon">+</span><span class="txt">11 funciones _leer_*()</span></div>
-    <div class="diff-pill added"><span class="icon">+</span><span class="txt">5 helpers de caracteres</span></div>
-    <div class="diff-pill added"><span class="icon">+</span><span class="txt">_siguiente_token()</span></div>
-    <div class="diff-pill changed"><span class="icon">~</span><span class="txt">_clasificar() modificada</span></div>
-    <div class="diff-pill changed"><span class="icon">~</span><span class="txt">PALABRAS_RESERVADAS en UPPER</span></div>
+    <div class="dp add"><span class="ic">+</span><span class="tx">SENSOR_TEMP … SENSOR_HUMO (5 tipos)</span></div>
+    <div class="dp add"><span class="ic">+</span><span class="tx">ACT_FOCO … ACT_ALARMA (7 tipos)</span></div>
+    <div class="dp add"><span class="ic">+</span><span class="tx">_detectar_invalido() — errores específicos</span></div>
+    <div class="dp add"><span class="ic">+</span><span class="tx">_distancia_edicion() — palabras similares</span></div>
+    <div class="dp add"><span class="ic">+</span><span class="tx">Rango absoluto sin contexto</span></div>
+    <div class="dp add"><span class="ic">+</span><span class="tx">Parser PLY LALR(1)</span></div>
+    <div class="dp add"><span class="ic">+</span><span class="tx">_PLYToken sin __slots__</span></div>
+    <div class="dp chg"><span class="ic">~</span><span class="tx">SENSOR/ACTUADOR → tipos individuales</span></div>
+    <div class="dp chg"><span class="ic">~</span><span class="tx">p_error usa .value explícito</span></div>
   </div>
 </div>
 
-<!-- ══ RESUMEN DE CAMBIOS ══ -->
-<section class="section" id="cambios">
-  <div class="sh"><span class="sb2 bg">General</span><h2>Resumen de cambios v2 → v3</h2></div>
-  <div class="flow"><span class="h4">LO QUE SE ELIMINÓ</span>
-  import re                    ← ya no existe en el archivo
-  re.compile(...)              ← reemplazado por _siguiente_token()
-  _REGEX_MASTER                ← reemplazado por funciones _leer_*()
-  re.IGNORECASE                ← ya no aplica
-  re.match(...) en helpers     ← reemplazado por _extraer_numero()
+<!-- ══ PIPELINE ══ -->
+<section class="section" id="pipeline">
+  <div class="sh"><span class="sb2 bg">General</span><h2>Pipeline completo</h2></div>
+  <div class="flow"><span class="h1">FASE 1 — Análisis léxico  (lexer.py v4)</span>
+  fuente .smart
+    └─ SmartHomeLexer.tokenizar()
+         └─ _procesar_linea()  por cada línea
+              ├─ saltar blancos con _es_blanco()
+              ├─ <span class="h3">_siguiente_token()</span>            ← prueba cada tipo en orden de precedencia
+              │    ├─ _leer_comentario()
+              │    ├─ _leer_cadena()              ← acepta " " " " (ASCII + tipográficas)
+              │    ├─ _leer_email()               ← con validación de puntos consecutivos
+              │    ├─ _leer_temperatura()         ← número + °C
+              │    ├─ _leer_con_sufijo('lux')     → ILUMINANCIA
+              │    ├─ _leer_con_sufijo('%')       → PORCENTAJE
+              │    ├─ _leer_tiempo()              → llama _leer_con_sufijo('s'/'m'/'h')
+              │    ├─ _leer_fecha()               → DD/MM/AAAA con validación
+              │    ├─ _leer_hora()                → HH:MM con validación
+              │    ├─ operadores                  ← comparación directa de chars
+              │    ├─ <span class="h3">_leer_numero()</span>               ← ENTERO/FLOTANTE (solo si sin sufijo sospechoso)
+              │    └─ _leer_identificador()  →  <span class="h3">_clasificar()</span>
+              │         ├─ PALABRAS_RESERVADAS (case-insensitive via .upper())
+              │         ├─ PREFIJOS_SENSOR    → SENSOR_TEMP … SENSOR_HUMO
+              │         ├─ PREFIJOS_ACTUADOR  → ACT_FOCO … ACT_ALARMA
+              │         ├─ ATRIBUTOS_CONOCIDOS (solo si prev == PUNTO)
+              │         ├─ <span class="h3">_palabra_reservada_similar()</span>  ← "OFFF" → ERROR_LEX + sugerencia
+              │         └─ IDENTIFICADOR
+              ├─ si _siguiente_token devuelve None:
+              │    └─ <span class="h3">_detectar_invalido()</span>          ← error específico con mensaje detallado
+              ├─ _actualizar_ctx()               ← contexto dispositivo→atributo
+              └─ _validar_rango()                ← rango absoluto + rango específico
 
-<span class="h3">LO QUE SE AGREGÓ</span>
-  Helpers de caracteres (5 funciones):
-    _es_letra()          _es_digito()      _es_alfanum_o_guion()
-    _es_email_char()     _es_blanco()
-
-  Funciones de reconocimiento (11 funciones):
-    _leer_comentario()   _leer_cadena()      _leer_numero()
-    _leer_temperatura()  _leer_con_sufijo()  _leer_tiempo()
-    _leer_hora()         _leer_fecha()       _leer_email()
-    _leer_identificador()
-
-  Función de extracción numérica (1 función):
-    _extraer_numero()    ← reemplaza re.match en los helpers de rango
-
-  Método orquestador (1 método):
-    _siguiente_token()   ← reemplaza _REGEX_MASTER
-
-<span class="h2">LO QUE SE MODIFICÓ</span>
-  _clasificar():
-    v2: lower = palabra.lower()
-        if lower in PALABRAS_RESERVADAS ...    ← case-insensitive
-    v3: if palabra in PALABRAS_RESERVADAS ...  ← case-SENSITIVE
-
-  PALABRAS_RESERVADAS (dict):
-    v2: claves en minúsculas { "when": TT.WHEN, "if": TT.IF, ... }
-    v3: claves en MAYÚSCULAS { "WHEN": TT.WHEN, "IF": TT.IF, ... }
-
-  _procesar_linea():
-    v2: llamaba a _REGEX_MASTER.match(linea, pos)
-    v3: llama a self._siguiente_token(linea, pos, ...)</div>
+<span class="h2">FASE 2 — Análisis sintáctico + traducción HTML  (parser_ply.py)</span>
+  List[Token]
+    └─ LexerAdaptador  ← convierte Token → _PLYToken(.type, .value=Token)
+         └─ ply.yacc parser LALR(1)
+              ├─ p_bloque_when_open()  → emit &lt;div&gt; + &lt;h2&gt; + sensores verdes
+              ├─ p_cuerpo()            → bucle de acciones
+              │    ├─ p_asignacion()   → validar + anotar en _Estado.acum
+              │    └─ p_if_inner()     → volcar acum + emit &lt;div&gt; anidado
+              ├─ p_bloque_when()       → volcar acum + emit &lt;/div&gt;
+              └─ p_error()             → registrar error sin crashear</div>
 </section>
 
-<!-- ══ CLASES UTILIZADAS ══ -->
-<section class="section" id="clases">
-  <div class="sh"><span class="sb2 bg">General</span><h2>Clases utilizadas y su propósito</h2></div>
+<!-- ══ GRAMÁTICA ══ -->
+<section class="section" id="gramatica">
+  <div class="sh"><span class="sb2 bg">General</span><h2>Gramática con acciones semánticas</h2></div>
+  <p>Las llaves <code>{ }</code> son acciones semánticas: código Python que se ejecuta en el momento exacto en que esa parte de la regla fue reconocida por PLY.</p>
+  <div class="flow"><span class="h2">programa</span>       → instruccion_lista
+<span class="h2">instruccion_lista</span> → instruccion_lista instruccion   <span class="h3">| acumula de izquierda a derecha</span>
+                  | instruccion
+<span class="h2">instruccion</span>       → bloque_when | bloque_every | condicional | asignacion_suelta
+
+<span class="h2">bloque_when</span>       → bloque_when_open cuerpo END
+                    <span class="h3">{ volcar actuadores + emit &lt;/div&gt; }</span>
+<span class="h2">bloque_when_open</span>  → WHEN condicion DO
+                    <span class="h3">{ emit &lt;div&gt; + &lt;h2&gt;Cuando:…&lt;/h2&gt; + bloques sensor verdes + push_acum() }</span>
+
+<span class="h2">bloque_every</span>      → bloque_every_open cuerpo END
+                    <span class="h3">{ volcar actuadores + emit &lt;/div&gt; }</span>
+<span class="h2">bloque_every_open</span> → EVERY TIEMPO DO
+                    <span class="h3">{ emit &lt;div&gt; + &lt;h2&gt;Cada: TIEMPO&lt;/h2&gt; + push_acum() }</span>
+
+<span class="h2">cuerpo</span>            → cuerpo accion  |  accion
+<span class="h2">accion</span>            → asignacion | condicional_inner
+
+<span class="h2">condicional</span>       → if_open cuerpo END
+                    <span class="h3">{ volcar + pop_acum + emit &lt;/div&gt; }</span>
+                  | if_open cuerpo else_open cuerpo END
+<span class="h2">if_open</span>           → IF condicion THEN
+                    <span class="h3">{ emit &lt;div&gt; + &lt;h2&gt;Si:…&lt;/h2&gt; + sensores + push_acum() }</span>
+<span class="h2">else_open</span>         → ELSE
+                    <span class="h3">{ volcar acum + pop + emit &lt;/div&gt; + emit nuevo &lt;div&gt; + push_acum() }</span>
+
+<span class="h2">condicional_inner</span> → if_inner_open cuerpo END
+                  | if_inner_open cuerpo else_inner_open cuerpo END
+
+<span class="h2">asignacion</span>        → actuador PUNTO attr OP_ASIG valor_asig
+                    <span class="h3">{ chk_attr() + anotar &lt;li&gt; en acum[nombre] ← NO emite HTML todavía }</span>
+<span class="h2">asignacion_suelta</span> → actuador PUNTO attr OP_ASIG valor_asig
+                    <span class="h3">{ chk_attr() + emit bloque gris directo }</span>
+
+<span class="h2">condicion</span>         → condicion AND expr_cond  |  condicion OR expr_cond  |  expr_cond
+<span class="h2">expr_cond</span>         → NOT expr_cond
+                  | TRUE | FALSE | ON | OFF
+                  | sensor op_cmp valor_literal     <span class="h3">{ chk_sensor() → registro para bloque verde }</span>
+                  | actuador PUNTO attr op_cmp valor_literal  <span class="h3">{ chk_attr(es_lectura=True) }</span></div>
+</section>
+
+<!-- ══ TABLA DE TOKENS ══ -->
+<section class="section" id="tokens-tabla">
+  <div class="sh"><span class="sb2 bg">General</span><h2>Tabla de tokens</h2></div>
   <table class="dt">
-    <thead><tr><th>Clase</th><th>Archivo</th><th>Para qué sirve</th></tr></thead>
+    <thead><tr><th>Tipo TT</th><th>Qué reconoce</th><th>Ejemplo</th><th>Case</th></tr></thead>
     <tbody>
-      <tr>
-        <td class="tt">TT</td><td class="ex">lexer.py</td>
-        <td class="pd">Namespace de constantes de cadena que representan cada tipo de token. No se instancia; solo agrupa constantes como <code>TT.WHEN</code>, <code>TT.SENSOR</code>, <code>TT.TEMPERATURA</code>. En v3 las constantes de palabras reservadas son idénticas a las claves del diccionario <code>PALABRAS_RESERVADAS</code> (ambas en MAYÚSCULAS), lo que hace el código coherente.</td>
-      </tr>
-      <tr>
-        <td class="tt">Token</td><td class="ex">lexer.py</td>
-        <td class="pd">Dataclass que almacena la información de un token reconocido: tipo (constante TT), valor (texto crudo del fuente), número de línea y columna. Es la unidad de comunicación entre el Lexer y el Parser. No cambió en v3.</td>
-      </tr>
-      <tr>
-        <td class="tt">SmartHomeLexer</td><td class="ex">lexer.py</td>
-        <td class="pd">Clase principal del analizador léxico. Mantiene el estado del análisis (contexto dispositivo→atributo) y expone los métodos públicos <code>tokenizar()</code> y <code>tokenizar_linea()</code>. En v3 reemplaza el uso de <code>_REGEX_MASTER</code> por llamadas al nuevo método <code>_siguiente_token()</code>.</td>
-      </tr>
-      <tr>
-        <td class="tt">ErrorSintactico</td><td class="ex">parser_una_pasada.py</td>
-        <td class="pd">Excepción personalizada que el parser lanza cuando la gramática no se cumple. Transporta el mensaje de error y el token que lo provocó. No cambió en v3.</td>
-      </tr>
-      <tr>
-        <td class="tt">ParserHTML</td><td class="ex">parser_una_pasada.py</td>
-        <td class="pd">Parser LL(1) descendente recursivo que genera HTML durante el análisis sintáctico, sin construir AST intermedio. Solo cambió su importación: ahora importa desde <code>lexer_v3</code> (o <code>lexer</code> renombrado) en lugar de la versión anterior. Toda la lógica interna es igual.</td>
-      </tr>
+      <tr><td class="tt">WHEN IF THEN ELSE DO END EVERY AND OR NOT</td><td>Palabras clave estructurales</td><td class="ex">WHEN, when, When</td><td>Insensible</td></tr>
+      <tr><td class="tt">TRUE FALSE ON OFF</td><td>Booleanos</td><td class="ex">TRUE, true, ON, on</td><td>Insensible</td></tr>
+      <tr><td class="tt">FRIO CALOR VENT</td><td>Modos de aire acondicionado</td><td class="ex">FRIO, frio</td><td>Insensible</td></tr>
+      <tr><td class="tt">BLANCO ROJO AZUL</td><td>Colores de foco</td><td class="ex">AZUL, azul, Azul</td><td>Insensible</td></tr>
+      <tr><td class="tt">SENSOR_TEMP</td><td>sensor_temp* (cualquier nombre con ese prefijo)</td><td class="ex">sensor_temp_ext</td><td>Insensible</td></tr>
+      <tr><td class="tt">SENSOR_HUMEDAD</td><td>sensor_humedad</td><td class="ex">sensor_humedad</td><td>Insensible</td></tr>
+      <tr><td class="tt">SENSOR_LUZ</td><td>sensor_luz</td><td class="ex">sensor_luz</td><td>Insensible</td></tr>
+      <tr><td class="tt">SENSOR_MOVIMIENTO</td><td>sensor_movimiento*</td><td class="ex">sensor_movimiento_sala</td><td>Insensible</td></tr>
+      <tr><td class="tt">SENSOR_HUMO</td><td>sensor_humo</td><td class="ex">sensor_humo</td><td>Insensible</td></tr>
+      <tr><td class="tt">ACT_FOCO</td><td>foco_*</td><td class="ex">foco_sala</td><td>Insensible</td></tr>
+      <tr><td class="tt">ACT_AIRE</td><td>aire_*</td><td class="ex">aire_acondicionado</td><td>Insensible</td></tr>
+      <tr><td class="tt">ACT_PERSIANA</td><td>persiana_*</td><td class="ex">persiana_comedor</td><td>Insensible</td></tr>
+      <tr><td class="tt">ACT_CERRADURA</td><td>cerradura_*</td><td class="ex">cerradura_principal</td><td>Insensible</td></tr>
+      <tr><td class="tt">ACT_RELOJ</td><td>reloj_*</td><td class="ex">reloj_principal</td><td>Insensible</td></tr>
+      <tr><td class="tt">ACT_ALTAVOZ</td><td>altavoz_*</td><td class="ex">altavoz_comedor</td><td>Insensible</td></tr>
+      <tr><td class="tt">ACT_ALARMA</td><td>alarma_*</td><td class="ex">alarma_casa</td><td>Insensible</td></tr>
+      <tr><td class="tt">ATTR_ESTADO … ATTR_ACTIVADA</td><td>Atributos tipados (solo tras PUNTO)</td><td class="ex">.brillo → ATTR_BRILLO</td><td>Insensible</td></tr>
+      <tr><td class="tt">ATTR_GENERICO</td><td>Atributo no reconocido</td><td class="ex">.cualquier_cosa</td><td>—</td></tr>
+      <tr><td class="tt">TEMPERATURA</td><td>Número + °C o °c</td><td class="ex">25°C, -5°c</td><td>°C/°c</td></tr>
+      <tr><td class="tt">PORCENTAJE</td><td>Número positivo + %</td><td class="ex">80%</td><td>—</td></tr>
+      <tr><td class="tt">ILUMINANCIA</td><td>Número positivo + lux</td><td class="ex">600lux</td><td>lux/LUX</td></tr>
+      <tr><td class="tt">TIEMPO</td><td>Número positivo + s/m/h</td><td class="ex">30m, 10s, 1h</td><td>—</td></tr>
+      <tr><td class="tt">HORA</td><td>HH:MM en rango 00:00-23:59</td><td class="ex">22:00</td><td>—</td></tr>
+      <tr><td class="tt">FECHA</td><td>DD/MM/AAAA con rangos válidos</td><td class="ex">21/04/2026</td><td>—</td></tr>
+      <tr><td class="tt">EMAIL</td><td>usuario@dominio.ext sin puntos consecutivos</td><td class="ex">a@dom.com</td><td>—</td></tr>
+      <tr><td class="tt">CADENA</td><td>Texto entre comillas dobles (ASCII o tipográficas)</td><td class="ex">"hola"</td><td>—</td></tr>
+      <tr><td class="tt">ERROR_LEX</td><td>Literal inválido detectado explícitamente</td><td class="ex">500luxx, OFFF, 25°F</td><td>—</td></tr>
     </tbody>
   </table>
 </section>
 
-<!-- ══ PIPELINE ══ -->
-<section class="section" id="pipeline">
-  <div class="sh"><span class="sb2 bg">General</span><h2>Pipeline v3</h2></div>
-  <div class="flow"><span class="h1">FASE 1 — Análisis léxico  (lexer.py v3)</span>
-  fuente (str)
-    └─ SmartHomeLexer.tokenizar()
-         └─ _procesar_linea()  por cada línea
-              ├─ saltar blancos con _es_blanco()
-              ├─ <span class="h3">_siguiente_token()</span>       ← NUEVO: reemplaza _REGEX_MASTER
-              │    ├─ _leer_comentario()
-              │    ├─ _leer_cadena()
-              │    ├─ _leer_email()
-              │    ├─ _leer_temperatura()
-              │    ├─ _leer_con_sufijo('lux')  → ILUMINANCIA
-              │    ├─ _leer_con_sufijo('%')    → PORCENTAJE
-              │    ├─ _leer_tiempo()           → llama a _leer_con_sufijo('s'/'m'/'h')
-              │    ├─ _leer_fecha()
-              │    ├─ _leer_hora()
-              │    ├─ operadores  (comparación directa de chars)
-              │    └─ _leer_identificador() → _clasificar()
-              ├─ _actualizar_ctx()
-              └─ _validar_rango()  → usa _extraer_numero() en vez de re.match
-
-<span class="h2">FASE 2 — Análisis sintáctico + HTML  (parser_una_pasada.py)</span>
-  Sin cambios internos. Solo actualizado el import del lexer.</div>
-</section>
-
-<!-- ══ TABLA DE TOKENS ══ -->
-<section class="section" id="tokens">
-  <div class="sh"><span class="sb2 bg">General</span><h2>Tabla de tokens — case-sensitivity en v3</h2></div>
-  <p>La novedad de v3 es la columna <strong>Case</strong>: indica si el token se reconoce solo en mayúsculas o de forma insensible.</p>
+<!-- ══ RANGOS ══ -->
+<section class="section" id="rangos">
+  <div class="sh"><span class="sb2 bg">General</span><h2>Rangos nombrados</h2></div>
   <table class="dt">
-    <thead><tr><th>Tipo TT</th><th>Ejemplo válido</th><th>Ejemplo inválido en v3</th><th>Case</th></tr></thead>
+    <thead><tr><th>Constante</th><th>Rango</th><th>Uso</th></tr></thead>
     <tbody>
-      <tr><td class="tt">WHEN IF THEN ELSE DO END EVERY</td><td class="ex">WHEN, IF, DO</td><td class="ex">when, When, iF</td><td>Solo UPPER</td></tr>
-      <tr><td class="tt">AND OR NOT</td><td class="ex">AND, OR, NOT</td><td class="ex">and, And</td><td>Solo UPPER</td></tr>
-      <tr><td class="tt">TRUE FALSE ON OFF</td><td class="ex">TRUE, OFF</td><td class="ex">true, False, on</td><td>Solo UPPER</td></tr>
-      <tr><td class="tt">FRIO CALOR VENT</td><td class="ex">FRIO, VENT</td><td class="ex">frio, Calor</td><td>Solo UPPER</td></tr>
-      <tr><td class="tt">BLANCO ROJO AZUL</td><td class="ex">BLANCO, AZUL</td><td class="ex">blanco, Rojo</td><td>Solo UPPER</td></tr>
-      <tr><td class="tt">SENSOR</td><td class="ex">sensor_luz, SENSOR_LUZ</td><td>—</td><td>Insensible</td></tr>
-      <tr><td class="tt">ACTUADOR</td><td class="ex">foco_sala, FOCO_SALA</td><td>—</td><td>Insensible</td></tr>
-      <tr><td class="tt">ATTR_BRILLO … ATTR_ACTIVADA</td><td class="ex">brillo, BRILLO</td><td>—</td><td>Insensible</td></tr>
-      <tr><td class="tt">TEMPERATURA</td><td class="ex">25°C, -5°C, 25°c</td><td>—</td><td>Insensible (°C/°c)</td></tr>
-      <tr><td class="tt">PORCENTAJE ILUMINANCIA TIEMPO</td><td class="ex">80%, 600lux, 30m</td><td>—</td><td>Insensible</td></tr>
-      <tr><td class="tt">HORA FECHA EMAIL CADENA</td><td class="ex">22:00, 21/04/2026</td><td>—</td><td>No aplica</td></tr>
+      <tr><td class="tt">RANGO_TEMP_1</td><td>-10.0 a 50.0 °C</td><td>sensor_temp, aire_.temp_act</td></tr>
+      <tr><td class="tt">RANGO_TEMP_2</td><td>16.0 a 30.0 °C</td><td>aire_.temp_obj</td></tr>
+      <tr><td class="tt">RANGO_PERCENT</td><td>0 a 100 %</td><td>sensor_humedad, foco_.brillo, persiana_.posicion, altavoz_.volumen</td></tr>
+      <tr><td class="tt">RANGO_LUX</td><td>0 a 1000 lux</td><td>sensor_luz</td></tr>
+      <tr><td class="tt">RANGO_ABSOLUTO_TEMP</td><td>-10.0 a 50.0 °C</td><td>Todo literal TEMPERATURA, haya o no contexto</td></tr>
+      <tr><td class="tt">RANGO_ABSOLUTO_PERCENT</td><td>0 a 100 %</td><td>Todo literal PORCENTAJE sin contexto</td></tr>
+      <tr><td class="tt">RANGO_ABSOLUTO_LUX</td><td>0 a 1000 lux</td><td>Todo literal ILUMINANCIA sin contexto</td></tr>
     </tbody>
   </table>
 </section>
@@ -328,17 +315,13 @@
 
 <section class="section" id="tt">
   <div class="sh"><span class="sb2 bl">Lexer</span><h2>clase TT — Token Types</h2></div>
-  <div class="fc lx">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kc">class</span>
-      <span class="fn">TT</span>
-      <span class="fb2">Namespace de constantes de tipo de token — sin cambios en estructura</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc lx open">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kc">class</span><span class="fn">TT</span><span class="fb2">Namespace de todas las constantes de tipo de token</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Clase sin instancias que actúa como enumeración de cadenas. Cada atributo es una cadena igual a su nombre (<code>TT.WHEN == "WHEN"</code>). No se instancia nunca; solo agrupa y nombra las constantes.</p>
-      <div class="newb"><strong>Cambio v3:</strong> en v2 las claves de <code>PALABRAS_RESERVADAS</code> estaban en minúsculas (<code>"when"</code>) y los valores de <code>TT</code> en mayúsculas (<code>"WHEN"</code>). En v3 ambos están en MAYÚSCULAS, lo que hace la clasificación directa: <code>palabra in PALABRAS_RESERVADAS</code> sin necesidad de normalizar.</div>
-      <p class="fd">Agrupa los tokens en: palabras reservadas, operadores lógicos, booleanos, valores discretos, dispositivos, atributos tipados, literales con unidad, literales simples, operadores y especiales.</p>
+      <p class="fd">Clase sin instancias que agrupa todas las constantes de tipo como atributos de clase. Cada atributo es un string igual a su nombre (<code>TT.WHEN == "WHEN"</code>). No se importa ningún módulo <code>enum</code>.</p>
+      <p class="fd">Novedad v4: incluye dos sets de clase <code>TT.SENSORES</code> y <code>TT.ACTUADORES</code> que agrupan los tipos de los dispositivos individuales. El lexer los usa en <code>_actualizar_ctx()</code> y el parser en sus validaciones semánticas.</p>
+      <div class="fs">TT.SENSORES  = { SENSOR_TEMP, SENSOR_HUMEDAD, SENSOR_LUZ, SENSOR_MOVIMIENTO, SENSOR_HUMO }
+TT.ACTUADORES = { ACT_FOCO, ACT_AIRE, ACT_PERSIANA, ACT_CERRADURA, ACT_RELOJ, ACT_ALTAVOZ, ACT_ALARMA }</div>
     </div>
   </div>
 </section>
@@ -346,1404 +329,713 @@
 <section class="section" id="token">
   <div class="sh"><span class="sb2 bl">Lexer</span><h2>clase Token</h2></div>
   <div class="fc lx">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kd">dataclass</span>
-      <span class="fn">Token</span>
-      <span class="fb2">Unidad mínima de información producida por el lexer</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk kd">dataclass</span><span class="fn">Token</span><span class="fb2">Unidad mínima de información producida por el lexer</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Estructura inmutable con cuatro campos. El decorador <code>@dataclass</code> genera automáticamente <code>__init__</code> y <code>__repr__</code>. El <code>__str__</code> está definido manualmente para formatear la salida de consola con alineación fija. No cambió en v3.</p>
       <table class="pt"><thead><tr><th>Campo</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
-        <tr><td class="pn">tipo</td><td class="pty">str</td><td class="pd">Constante TT que clasifica el token (ej. <code>TT.SENSOR</code>)</td></tr>
-        <tr><td class="pn">valor</td><td class="pty">str</td><td class="pd">Texto crudo del token tal como aparece en el fuente</td></tr>
+        <tr><td class="pn">tipo</td><td class="pty">str</td><td class="pd">Constante TT, ej. <code>TT.SENSOR_TEMP</code>, <code>TT.ACT_FOCO</code></td></tr>
+        <tr><td class="pn">valor</td><td class="pty">str</td><td class="pd">Texto crudo tal como aparece en el fuente, ej. <code>"sensor_temp_exterior"</code>, <code>"foco_sala"</code></td></tr>
         <tr><td class="pn">linea</td><td class="pty">int</td><td class="pd">Número de línea 1-based</td></tr>
         <tr><td class="pn">col</td><td class="pty">int</td><td class="pd">Número de columna 1-based</td></tr>
+      </tbody></table>
+      <div class="nb"><strong>En el parser PLY:</strong> <code>_PLYToken.value = tok</code>. Dentro de las reglas gramaticales, PLY extrae <code>.value</code> automáticamente, por lo que <code>p[i]</code> ya es el <code>Token</code> directamente. En <code>p_error</code> hay que acceder vía <code>p.value</code> explícitamente.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tablas-lex">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Tablas de clasificación</h2></div>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kd">dict</span><span class="fn">PALABRAS_RESERVADAS</span><span class="fb2">Mapeo nombre→TT, claves en UPPER, búsqueda case-insensitive</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Diccionario de 19 entradas. La búsqueda en <code>_clasificar()</code> se hace con <code>palabra.upper()</code> antes de consultar, por lo que <code>when</code>, <code>When</code> y <code>WHEN</code> encuentran la misma clave <code>"WHEN"</code>. El valor del token siempre se devuelve en UPPER.</p>
+    </div>
+  </div>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kd">tuple</span><span class="fn">PREFIJOS_SENSOR / PREFIJOS_ACTUADOR</span><span class="fb2">Cada elemento es (prefijo, TT.*) — novedad v4: tipos individuales</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">En v3 existían listas separadas de prefijos de sensores y actuadores que devolvían los tipos genéricos <code>TT.SENSOR</code> y <code>TT.ACTUADOR</code>. En v4 cada entrada devuelve su tipo específico: <code>("sensor_temp", TT.SENSOR_TEMP)</code>, <code>("foco_", TT.ACT_FOCO)</code>, etc. Esto permite al parser PLY tener reglas gramaticales individuales para cada dispositivo.</p>
+      <div class="fs">PREFIJOS_SENSOR = (
+    ("sensor_movimiento", TT.SENSOR_MOVIMIENTO),  ← más largo primero
+    ("sensor_humedad",    TT.SENSOR_HUMEDAD),
+    ("sensor_humo",       TT.SENSOR_HUMO),
+    ("sensor_temp",       TT.SENSOR_TEMP),         ← evita que "sensor_temp_ext" matchee aquí
+    ("sensor_luz",        TT.SENSOR_LUZ),
+)</div>
+    </div>
+  </div>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kd">dict</span><span class="fn">ATRIBUTOS_CONOCIDOS / TABLA_RANGOS</span><span class="fb2">Clasificación de atributos y rangos específicos por dispositivo</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd"><strong>ATRIBUTOS_CONOCIDOS</strong>: mapeo <code>nombre_lower → TT.ATTR_*</code>. Solo se consulta cuando el token anterior fue <code>PUNTO</code>, habilitando tokens tipados como <code>ATTR_BRILLO</code>.</p>
+      <p class="fd"><strong>TABLA_RANGOS</strong>: mapeo <code>(tipo_dispositivo_TT, tipo_atributo_TT) → (tipo_esperado, rango, descripcion)</code>. En v4 las claves usan los nuevos tipos individuales (<code>TT.SENSOR_TEMP</code>, <code>TT.ACT_FOCO</code>) en vez del genérico anterior.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="helpers-char">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Helpers de caracteres</h2></div>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_es_letra / _es_digito / _es_alfanum_o_guion / _es_email_char / _es_blanco</span><span class="fb2">Clasifican un carácter sin usar re</span><span class="ft">›</span></div>
+    <div class="fb">
+      <table class="pt"><thead><tr><th>Función</th><th>Retorna True si…</th><th>Equivalente re</th></tr></thead><tbody>
+        <tr><td class="pn">_es_letra(c)</td><td class="pd">c es a-z o A-Z (excluye ñ, vocales acentuadas)</td><td class="tt">[a-zA-Z]</td></tr>
+        <tr><td class="pn">_es_digito(c)</td><td class="pd">c es 0-9 (excluye dígitos Unicode)</td><td class="tt">[0-9]</td></tr>
+        <tr><td class="pn">_es_alfanum_o_guion(c)</td><td class="pd">letra, dígito o _</td><td class="tt">[a-zA-Z0-9_]</td></tr>
+        <tr><td class="pn">_es_email_char(c)</td><td class="pd">letra, dígito, _ . + -</td><td class="tt">[a-zA-Z0-9_.+\-]</td></tr>
+        <tr><td class="pn">_es_blanco(c)</td><td class="pd">espacio, tab, CR, LF</td><td class="tt">\s</td></tr>
       </tbody></table>
     </div>
   </div>
 </section>
 
-<section class="section" id="tablas">
-  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Tablas de clasificación</h2></div>
-
-  <div class="fc lx">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kd">dict</span>
-      <span class="fn">PALABRAS_RESERVADAS</span>
-      <span class="fb2">Cambio v3: claves ahora en MAYÚSCULAS</span>
-      <span class="ft">›</span>
-    </div>
+<section class="section" id="distancia">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>★ _distancia_edicion() y _palabra_reservada_similar()</h2></div>
+  <div class="fc lx new">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kn">nueva</span><span class="fn">_distancia_edicion(a, b)</span><span class="fb2">Distancia de Levenshtein implementada a mano, sin librerías</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Diccionario que mapea nombre de palabra reservada → constante TT. La búsqueda es O(1) y determina si un identificador es una palabra del lenguaje.</p>
-      <div class="newb"><strong>Cambio v3:</strong> las claves pasaron de minúsculas a MAYÚSCULAS. Esto hace la clasificación case-sensitive sin necesidad de normalizar: si el usuario escribe <code>when</code>, la consulta falla porque <code>"when"</code> no existe como clave, y el token se convierte en <code>IDENTIFICADOR</code>.</div>
-      <div class="fs">v2:  { "when": TT.WHEN, "if": TT.IF, "and": TT.AND, ... }
-v3:  { "WHEN": TT.WHEN, "IF": TT.IF, "AND": TT.AND, ... }</div>
+      <p class="fd">Calcula el mínimo de operaciones (inserción, eliminación, sustitución de un carácter) para convertir <code>a</code> en <code>b</code>. Implementada con programación dinámica (dos filas en vez de la matriz completa para ahorrar memoria).</p>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">a</td><td class="pty">str</td><td class="pd">Primera cadena (en nuestro caso, la palabra que el usuario escribió, normalizada a UPPER)</td></tr>
+        <tr><td class="pn">b</td><td class="pty">str</td><td class="pd">Segunda cadena (la palabra reservada a comparar)</td></tr>
+      </tbody></table>
+      <div class="rb"><div class="rl">Devuelve</div><div class="rv">int — número de operaciones mínimas. 0 = idénticas, 1 = difieren en 1 carácter</div></div>
+      <div class="fs">_distancia_edicion("OFFF", "OFF")   → 1  (una inserción de F sobrante)
+_distancia_edicion("WHEM", "WHEN")  → 1  (sustitución M→N)
+_distancia_edicion("WHEN", "WHEN")  → 0  (idénticas)</div>
     </div>
   </div>
-
-  <div class="fc lx">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kd">tuple / dict</span>
-      <span class="fn">PREFIJOS_SENSOR / PREFIJOS_ACTUADOR / ATRIBUTOS_CONOCIDOS / TABLA_RANGOS</span>
-      <span class="fb2">Sin cambios en v3</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc lx new" id="similar">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kn">nueva</span><span class="fn">_palabra_reservada_similar(palabra_upper)</span><span class="fb2">Busca la palabra reservada más parecida a una distancia de 1</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd"><strong>PREFIJOS_SENSOR / PREFIJOS_ACTUADOR</strong>: tuplas ordenadas de mayor a menor longitud de prefijo, garantizando que el prefijo más específico se encuentre primero. Sensores y actuadores siguen siendo case-insensitive porque son nombres de dispositivos dados por el usuario, no palabras del lenguaje.</p>
-      <p class="fd"><strong>ATRIBUTOS_CONOCIDOS</strong>: diccionario <code>nombre_lower → TT.ATTR_*</code> consultado solo cuando el token anterior fue <code>PUNTO</code>. Permite al parser recibir tokens específicos como <code>ATTR_BRILLO</code>.</p>
-      <p class="fd"><strong>TABLA_RANGOS</strong>: diccionario <code>(prefijo, TT.ATTR_*) → (tipo_esperado, rango, desc)</code>. Consultado por <code>_validar_rango()</code> para emitir advertencias semánticas tempranas de valores fuera de rango.</p>
+      <p class="fd">Itera las 19 palabras reservadas. Para cada una, si la diferencia de longitud es mayor a 2 se salta (optimización que evita comparar "ON" con "BLANCO"). Usa <code>_distancia_edicion()</code> y devuelve la que esté a distancia exactamente 1.</p>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">palabra_upper</td><td class="pty">str</td><td class="pd">La palabra ya normalizada a UPPER que escribió el usuario</td></tr>
+      </tbody></table>
+      <div class="rb"><div class="rl">Devuelve</div><div class="rv">str | None — la palabra reservada sugerida, o None si no hay ninguna a distancia 1</div></div>
+      <div class="nb"><strong>¿Por qué umbral de 1?</strong> Con umbral 2 se generarían demasiados falsos positivos: "IF" estaría a distancia 2 de "IFF", pero también de "OFF", generando sugerencias erróneas. Distancia 1 captura el error más común (una letra extra, faltante o cambiada) sin ruido.</div>
     </div>
   </div>
 </section>
 
-<section class="section" id="rangos">
-  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Rangos nombrados</h2></div>
-  <div class="fc lx">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kd">tuple</span>
-      <span class="fn">RANGO_TEMP_1 / RANGO_TEMP_2 / RANGO_PERCENT / RANGO_LUX</span>
-      <span class="fb2">Sin cambios en v3</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Constantes exportables con forma <code>(min, max, descripcion)</code> que el parser puede importar para sus propias validaciones semánticas.</p>
-      <div class="fs">RANGO_TEMP_1  = (-10.0,  50.0, "RANGO_TEMP_1: -10.0 a 50.0 grados C")
-RANGO_TEMP_2  = ( 16.0,  30.0, "RANGO_TEMP_2: 16.0 a 30.0 grados C")
-RANGO_PERCENT = (  0.0, 100.0, "RANGO_PERCENT: 0 a 100 %")
-RANGO_LUX     = (  0.0,1000.0, "RANGO_LUX: 0 a 1000 lux")</div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ HELPERS DE CARACTERES ══ -->
-<section class="section" id="helpers-char">
-  <div class="sh"><span class="sb2 bl">Lexer</span><h2>★ Helpers de caracteres — nuevas en v3</h2></div>
-  <p>Cinco funciones que reemplazan las clases de caracteres que antes definía el motor de expresiones regulares (<code>\w</code>, <code>\d</code>, <code>\s</code>, etc.). Son el bloque más primitivo sobre el que se construyen todas las funciones de reconocimiento.</p>
-
-  <div class="fc lx new">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_es_letra(c)</span>
-      <span class="fb2">True si c es letra a-z o A-Z</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Verifica si un carácter pertenece al alfabeto latino básico usando comparación de rangos Unicode directa, que es más rápida que <code>c.isalpha()</code> y tiene la ventaja de excluir letras con tilde y ñ (que no son válidas en el lenguaje según la consigna).</p>
-      <div class="fs">('a' <= c <= 'z') or ('A' <= c <= 'Z')</div>
-      <div class="newb"><strong>¿Por qué no usar <code>c.isalpha()</code>?</strong> Porque <code>isalpha()</code> retorna <code>True</code> para letras como <code>á</code>, <code>ñ</code>, <code>ü</code>, etc. La consigna especifica que no se admiten vocales acentuadas ni ñ, así que la comparación de rango es más correcta.</div>
-    </div>
-  </div>
-
-  <div class="fc lx new">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_es_digito(c)</span>
-      <span class="fb2">True si c es dígito 0-9</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Verifica si un carácter es un dígito decimal usando comparación de rango. Equivalente a <code>c.isdigit()</code> para dígitos ASCII, pero evita que caracteres Unicode como <code>²</code> o <code>٣</code> sean reconocidos como dígitos.</p>
-      <div class="fs">'0' <= c <= '9'</div>
-    </div>
-  </div>
-
-  <div class="fc lx new">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_es_alfanum_o_guion(c)</span>
-      <span class="fb2">True si c puede formar parte de un identificador</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Combina <code>_es_letra</code>, <code>_es_digito</code> y la comprobación de guion bajo. Es la condición que determina hasta dónde puede extenderse un identificador una vez que comenzó. Usada en el bucle de <code>_leer_identificador()</code>.</p>
-      <div class="fs">_es_letra(c) or _es_digito(c) or c == '_'</div>
-    </div>
-  </div>
-
-  <div class="fc lx new">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_es_email_char(c)</span>
-      <span class="fb2">True si c es válido en nombre de usuario o dominio de email</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Define el conjunto de caracteres permitidos en las partes del email según la consigna: letras, dígitos, guion bajo, punto, signo más y signo menos. Usada tanto para validar el nombre de usuario como el dominio en <code>_leer_email()</code>.</p>
-      <div class="fs">_es_letra(c) or _es_digito(c) or c in ('_', '.', '+', '-')</div>
-    </div>
-  </div>
-
-  <div class="fc lx new">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_es_blanco(c)</span>
-      <span class="fb2">True si c es espacio, tabulación, retorno de carro o salto de línea</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Usada en el bucle principal de <code>_procesar_linea()</code> para saltar los espacios entre tokens. Reemplaza la clase <code>\s</code> del regex.</p>
-      <div class="fs">c in (' ', '\t', '\r', '\n')</div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ FUNCIONES DE RECONOCIMIENTO ══ -->
 <section class="section" id="leer-comentario">
-  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Funciones de reconocimiento — nuevas en v3</h2></div>
-  <p>Todas siguen el mismo contrato: reciben <code>(linea, pos)</code> y retornan <code>(valor_str, nuevo_pos)</code> si hay coincidencia, o <code>None</code> si no. Este contrato uniforme permite que <code>_siguiente_token()</code> las pruebe en cascada de forma limpia.</p>
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Funciones de reconocimiento _leer_*()</h2></div>
+  <p>Todas siguen el mismo contrato: reciben <code>(linea, pos)</code> y retornan <code>(valor_str, nuevo_pos)</code> si hay coincidencia, o <code>None</code> si no. Este contrato uniforme permite que <code>_siguiente_token()</code> las pruebe en cascada.</p>
 
-  <div class="fc lx new">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_comentario(linea, pos)</span>
-      <span class="fb2">Reconoce // hasta el fin de la línea</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Verifica si los dos caracteres en <code>pos</code> y <code>pos+1</code> son ambas barras <code>/</code>. Si es así, retorna el resto completo de la línea como valor y la posición final como nuevo_pos, indicando que no hay más tokens en esta línea.</p>
-      <div class="fs">linea[pos] == '/' and linea[pos+1] == '/'
-→ retorna (linea[pos:], len(linea))</div>
-    </div>
-  </div>
-
-  <div class="fc lx new">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_cadena(linea, pos)</span>
-      <span class="fb2">Reconoce texto entre comillas dobles "..."</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Verifica que el primer carácter sea <code>"</code> y avanza buscando la comilla de cierre. Si encuentra <code>"</code> o el fin de línea antes de cerrar, determina si la cadena es válida o no. Una cadena sin comilla de cierre retorna <code>None</code> — el llamador generará un error léxico.</p>
-      <div class="fs">linea[pos] == '"'
-i = pos+1
-mientras linea[i] != '"' y linea[i] != '\n': i++
-si linea[i] == '"': retorna (linea[pos:i+1], i+1)
-si no: retorna None  ← comilla sin cerrar</div>
-    </div>
-  </div>
-
-  <div class="fc lx new">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_numero(linea, pos)</span>
-      <span class="fb2">Lee un número entero o decimal con signo negativo opcional</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Función base compartida por <code>_leer_temperatura()</code>, <code>_leer_con_sufijo()</code> y los pasos 13-14 de <code>_siguiente_token()</code>. Reconoce: signo <code>-</code> opcional → dígitos enteros → punto decimal → dígitos decimales (los dos últimos también opcionales).</p>
-      <div class="fs">[-]  dígitos+  [. dígitos+]
-"-25.5" → ("-25.5", pos+5)
-"80"    → ("80",    pos+2)
-"abc"   → None</div>
-      <div class="nb"><strong>Importante:</strong> esta función solo lee el número, no el sufijo. El token ENTERO o FLOTANTE se determina en <code>_siguiente_token()</code> chequeando si el resultado contiene <code>'.'</code>.</div>
-    </div>
-  </div>
-
-  <div class="fc lx new" id="extraer-numero">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_extraer_numero(s)</span>
-      <span class="fb2">Extrae el valor float del inicio de un string de token — reemplaza re.match</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Usada por los helpers numéricos (<code>_num_temperatura</code>, <code>_num_porcentaje</code>, <code>_num_iluminancia</code>) para extraer el número de un token ya reconocido como <code>"25°C"</code>, <code>"80%"</code> o <code>"600lux"</code>. Avanza carácter a carácter leyendo signo, parte entera y parte decimal, y retorna el <code>float</code> correspondiente.</p>
-      <div class="goneb"><strong>Lo que reemplaza:</strong> en v2 esta operación se hacía con <code>re.match(r"(-?\d+(?:\.\d+)?)", s).group(1)</code>. En v3 la misma lógica se implementa con un índice <code>i</code> que avanza mientras encuentra dígitos.</div>
-      <div class="fs">"25°C"    → 25.0
-"-5.5°C"  → -5.5
-"80%"     → 80.0
-"600lux"  → 600.0</div>
-    </div>
-  </div>
-
-  <div class="fc lx new" id="leer-temperatura">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_temperatura(linea, pos)</span>
-      <span class="fb2">Reconoce  [-]número°C  o  [-]número°c</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Llama a <code>_leer_numero()</code> para obtener la parte numérica y luego verifica que le sigan exactamente los caracteres <code>°</code> (Unicode U+00B0) y <code>C</code> o <code>c</code>. Si alguno de los dos falta, retorna <code>None</code>.</p>
-      <div class="fs">"26°C"  → ("26°C",  pos+4)
-"-5°c"  → ("-5°c",  pos+4)
-"26°F"  → None   ← no es Celsius
-"26C"   → None   ← falta el símbolo °</div>
-    </div>
-  </div>
-
-  <div class="fc lx new" id="leer-con-sufijo">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_con_sufijo(linea, pos, sufijo)</span>
-      <span class="fb2">Lee número positivo seguido exactamente de un sufijo dado</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Función genérica para reconocer PORCENTAJE (<code>%</code>), ILUMINANCIA (<code>lux</code>) y las unidades de tiempo (<code>s</code>, <code>m</code>, <code>h</code>). No acepta números negativos. Verifica además que después del sufijo no haya más letras, para evitar que <code>5min</code> sea reconocido como <code>5m</code> + <code>in</code>.</p>
-      <div class="fs">_leer_con_sufijo(linea, pos, '%'):
-  "80%"   → ("80%",    pos+3)
-  "100%"  → ("100%",   pos+4)
-  "-5%"   → None  ← no acepta negativo
-  "5min"  → None  ← 'm' seguido de 'i' (más letras)
-
-_leer_con_sufijo(linea, pos, 'lux'):
-  "600lux" → ("600lux", pos+6)</div>
-    </div>
-  </div>
-
-  <div class="fc lx new" id="leer-tiempo">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_tiempo(linea, pos)</span>
-      <span class="fb2">Reconoce número seguido de s, m o h</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Prueba las tres unidades de tiempo en orden llamando a <code>_leer_con_sufijo()</code> con cada una. Retorna el resultado del primero que coincida, o <code>None</code> si ninguno coincide.</p>
-      <div class="fs">para unidad en ('s', 'm', 'h'):
-    res = _leer_con_sufijo(linea, pos, unidad)
-    si res: retornar res
-retornar None
-
-"30m"  → ("30m", pos+3)
-"10s"  → ("10s", pos+3)
-"1h"   → ("1h",  pos+2)</div>
-    </div>
-  </div>
-
-  <div class="fc lx new" id="leer-hora">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_hora(linea, pos)</span>
-      <span class="fb2">Reconoce HH:MM en formato 24 horas con validación de rango</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Lee exactamente 5 caracteres y verifica estructura <code>DD:DD</code>, valores HH en 0-23 y MM en 0-59. También verifica que el 6° carácter no sea un dígito (para no capturar <code>12:345</code> como <code>12:34</code>).</p>
-      <div class="fs">s = linea[pos:pos+5]          ← "22:00"
-s[2] == ':' and todos son dígitos
-hh = int(s[0:2])  → 0..23
-mm = int(s[3:5])  → 0..59
-linea[pos+5] no es dígito
-
-"22:00" → ("22:00", pos+5)
-"25:00" → None  ← hora inválida
-"12:60" → None  ← minutos inválidos</div>
-    </div>
-  </div>
-
-  <div class="fc lx new" id="leer-fecha">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_fecha(linea, pos)</span>
-      <span class="fb2">Reconoce DD/MM/AAAA con validación de día, mes y año</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">La función más larga de las de reconocimiento. Parsea las tres partes de la fecha en secuencia: día (1-2 dígitos, 1-31), barra, mes (1-2 dígitos, 1-12), barra, año (exactamente 4 dígitos, 1900-2099). Verifica después del año que no haya más dígitos.</p>
-      <div class="fs">Día:  1-31  (1 o 2 dígitos)  → '/'
-Mes:  1-12  (1 o 2 dígitos)  → '/'
-Año:  1900-2099 (exactamente 4 dígitos)
-
-"21/04/2026" → ("21/04/2026", pos+10)
-"31/13/2026" → None  ← mes 13 inválido
-"21/04/1800" → None  ← año fuera de rango</div>
-      <div class="nb"><strong>Sin validación día/mes cruzada:</strong> la consigna indica que no es necesario validar que el día sea coherente con el mes (ej. 31 de febrero se acepta). Solo se valida que el día esté en 1-31 y el mes en 1-12 independientemente.</div>
-    </div>
-  </div>
-
-  <div class="fc lx new" id="leer-email">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_email(linea, pos)</span>
-      <span class="fb2">Reconoce usuario@dominio.ext con extensión de 2-4 letras</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Parsea el email en tres etapas: nombre de usuario (al menos un char válido según <code>_es_email_char()</code>), el <code>@</code> obligatorio, y el dominio. Dentro del dominio busca el último punto usando <code>rfind('.')</code> y verifica que la extensión sea de 2 a 4 letras puras.</p>
-      <div class="fs">usuario:   chars válidos (_es_email_char) + al menos 1
-@:         obligatorio
-dominio:   chars válidos, con al menos un punto
-extensión: 2-4 letras (último segmento tras el último punto)
-
-"user@dom.com"          → válido
-"f@s-h.com.ar"          → válido (extensión "ar")
-"user@dom"              → None  ← sin punto en dominio
-"user@dom.comx"         → None  ← extensión > 4 letras</div>
-    </div>
-  </div>
-
-  <div class="fc lx new" id="leer-identificador">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kn">nueva</span>
-      <span class="fn">_leer_identificador(linea, pos)</span>
-      <span class="fb2">Reconoce nombre: letra o _ seguido de letras, dígitos o _</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Verifica que el primer carácter sea letra o guion bajo y luego avanza mientras los caracteres siguientes sean alfanuméricos o guion bajo, usando <code>_es_alfanum_o_guion()</code>. El resultado se pasa a <code>_clasificar()</code> para determinar si es reservada, sensor, actuador, atributo o identificador genérico.</p>
-      <div class="fs">"WHEN"              → ("WHEN", pos+4)   → _clasificar → TT.WHEN
-"sensor_luz"        → ("sensor_luz", pos+10) → _clasificar → TT.SENSOR
-"foco_sala"         → ("foco_sala", pos+9)   → _clasificar → TT.ACTUADOR
-"brillo" (tras .)   → ("brillo", pos+6)      → _clasificar → TT.ATTR_BRILLO
-"mi_variable"       → ("mi_variable", ...)   → TT.IDENTIFICADOR</div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ HELPERS NUMÉRICOS ══ -->
-<section class="section" id="helpers-num">
-  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Helpers numéricos para rangos — modificados en v3</h2></div>
   <div class="fc lx">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_num_temperatura(v) / _num_porcentaje(v) / _num_iluminancia(v)</span>
-      <span class="fb2">Extraen el float de un token literal — ahora usan _extraer_numero()</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_comentario(linea, pos)</span><span class="fb2">Reconoce // hasta fin de línea</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Tres funciones que actúan como envoltorios de <code>_extraer_numero()</code>, agrupadas en el diccionario <code>_EXTRACTOR</code> para que <code>_validar_rango()</code> las llame sin un bloque <code>if/elif</code>.</p>
-      <div class="goneb"><strong>Cambio v3:</strong> en v2 cada una usaba <code>re.match(r"(-?\d+(?:\.\d+)?)", v).group(1)</code>. En v3 simplemente delegan en <code>_extraer_numero(v)</code>, que implementa la misma lógica sin <code>re</code>.</div>
-      <div class="fs">v2:  return float(re.match(r"(-?\d+(?:\.\d+)?)", v).group(1))
-v3:  return _extraer_numero(v)</div>
+      <p class="fd">Verifica que los dos caracteres en <code>pos</code> y <code>pos+1</code> sean <code>//</code>. Si es así, devuelve el resto de la línea completo y <code>len(linea)</code> como nueva posición, indicando que no hay más tokens en esta línea.</p>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">linea</td><td class="pty">str</td><td class="pd">Texto completo de la línea actual</td></tr>
+        <tr><td class="pn">pos</td><td class="pty">int</td><td class="pd">Posición actual del cursor dentro de la línea (0-based)</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+
+  <div class="fc lx" id="leer-cadena">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_cadena(linea, pos)</span><span class="fb2">Reconoce texto entre comillas — acepta ASCII y tipográficas</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Verifica que el carácter en <code>pos</code> sea una comilla de apertura reconocida y avanza buscando la comilla de cierre. Acepta tres variantes gracias a las constantes <code>_COMILLAS_APERTURA</code> y <code>_COMILLAS_CIERRE</code>.</p>
+      <div class="fs">_COMILLAS_APERTURA = ('"',  '\u201c')   →  " y "  (ASCII + tipográfica izquierda)
+_COMILLAS_CIERRE   = ('"',  '\u201d')   →  " y "  (ASCII + tipográfica derecha)</div>
+    </div>
+  </div>
+
+  <div class="fc lx" id="leer-numero">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_numero(linea, pos)</span><span class="fb2">Lee un número entero o decimal con signo negativo opcional</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Función base compartida por <code>_leer_temperatura()</code>, <code>_leer_con_sufijo()</code> y el paso 13-14 de <code>_siguiente_token()</code>. Reconoce: <code>[-] dígitos+ [. dígitos+]</code>.</p>
+      <div class="rb"><div class="rl">Devuelve</div><div class="rv">(num_str, nuevo_pos) o None si no hay dígitos en pos</div></div>
+    </div>
+  </div>
+
+  <div class="fc lx" id="extraer-numero">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_extraer_numero(s)</span><span class="fb2">Extrae el float del inicio de un string de token ya reconocido</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">A diferencia de <code>_leer_numero()</code> que trabaja sobre la línea original, esta función recibe un token ya capturado (como <code>"25°C"</code>, <code>"80%"</code>) y extrae solo la parte numérica inicial para comparar con rangos.</p>
+      <div class="fs">_extraer_numero("25°C")    → 25.0
+_extraer_numero("-5.5°C")  → -5.5
+_extraer_numero("600lux")  → 600.0</div>
+    </div>
+  </div>
+
+  <div class="fc lx" id="leer-temperatura">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_temperatura(linea, pos)</span><span class="fb2">Reconoce [-]número°C o [-]número°c</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Llama a <code>_leer_numero()</code> y luego verifica exactamente el símbolo <code>°</code> (U+00B0) seguido de <code>C</code> o <code>c</code>. Si el número tiene sufijo sospechoso (ej. <code>°F</code>), retorna <code>None</code> para que <code>_detectar_invalido()</code> genere el error específico.</p>
+    </div>
+  </div>
+
+  <div class="fc lx" id="leer-con-sufijo">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_con_sufijo(linea, pos, sufijo)</span><span class="fb2">Lee número positivo + sufijo exacto (lux, %, s, m, h)</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Función genérica para reconocer PORCENTAJE (<code>%</code>), ILUMINANCIA (<code>lux</code>) y TIEMPO (<code>s</code>, <code>m</code>, <code>h</code>). No acepta números negativos. Verifica que después del sufijo no haya más letras.</p>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">linea</td><td class="pty">str</td><td class="pd">Texto de la línea actual</td></tr>
+        <tr><td class="pn">pos</td><td class="pty">int</td><td class="pd">Posición del cursor</td></tr>
+        <tr><td class="pn">sufijo</td><td class="pty">str</td><td class="pd">El sufijo exacto a buscar: <code>'lux'</code>, <code>'%'</code>, <code>'s'</code>, <code>'m'</code> o <code>'h'</code></td></tr>
+      </tbody></table>
+    </div>
+  </div>
+
+  <div class="fc lx" id="leer-tiempo">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_tiempo(linea, pos)</span><span class="fb2">Prueba los tres sufijos de tiempo en orden</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Llama a <code>_leer_con_sufijo()</code> con <code>'s'</code>, <code>'m'</code> y <code>'h'</code> en ese orden. Retorna el primero que coincida, o <code>None</code> si ninguno lo hace.</p>
+    </div>
+  </div>
+
+  <div class="fc lx" id="leer-hora">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_hora(linea, pos)</span><span class="fb2">Reconoce HH:MM en formato 24h con validación de rango</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Lee exactamente 5 caracteres, verifica estructura <code>DD:DD</code>, y valida HH en 0-23 y MM en 0-59. Si algún valor está fuera de rango, retorna <code>None</code> para que <code>_detectar_invalido()</code> genere el error específico con el campo fuera de rango.</p>
+      <div class="fs">"22:00" → ("22:00", pos+5)
+"25:00" → None  ← hora 25 inválida → _detectar_invalido() reporta el error
+"12:74" → None  ← minutos 74 inválidos</div>
+    </div>
+  </div>
+
+  <div class="fc lx" id="leer-fecha">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_fecha(linea, pos)</span><span class="fb2">Reconoce DD/MM/AAAA con validación de día, mes y año</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Parsea las tres partes: día (1-31), mes (1-12), año (1900-2099). Si algún rango falla, retorna <code>None</code> para que <code>_detectar_invalido()</code> indique exactamente qué campo está mal.</p>
+      <div class="fs">"21/04/2026" → ("21/04/2026", pos+10)
+"41/10/2005" → None  ← día 41 inválido
+"32/13/2026" → None  ← día 32 inválido (mes 13 ni llega a evaluarse)</div>
+    </div>
+  </div>
+
+  <div class="fc lx" id="leer-email">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_email(linea, pos)</span><span class="fb2">Reconoce usuario@dominio.ext con validación estricta de puntos</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Recorre el dominio segmento a segmento verificando que no haya puntos consecutivos (<code>..</code>), punto al inicio del dominio, ni segmento vacío. La extensión (último segmento) debe tener 2-4 letras puras.</p>
+      <div class="fs">"felipe@smart-home.com.ar"  → válido
+"gonza@gmail...com.ar"     → None  ← puntos consecutivos → mensaje específico
+"user@.dom.com"            → None  ← punto al inicio del dominio</div>
+    </div>
+  </div>
+
+  <div class="fc lx new" id="sufijo-sospechoso">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kn">nueva</span><span class="fn">_tiene_sufijo_sospechoso(linea, pos)</span><span class="fb2">Impide que un literal mal escrito se acepte como número suelto</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Se llama justo antes de aceptar un número como <code>ENTERO</code> o <code>FLOTANTE</code>. Si inmediatamente después del número hay algo sospechoso, retorna <code>True</code> para que <code>_siguiente_token()</code> devuelva <code>None</code> en lugar de aceptar el número y dejar el sufijo huérfano.</p>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">linea</td><td class="pty">str</td><td class="pd">Texto de la línea actual</td></tr>
+        <tr><td class="pn">pos</td><td class="pty">int</td><td class="pd">Posición justo después del número ya leído</td></tr>
+      </tbody></table>
+      <div class="rb"><div class="rl">Devuelve</div><div class="rv">bool — True si el carácter en pos sugiere un token mal formado</div></div>
+      <div class="fs">Caracteres que dan True:
+  letra    → "500luxx" (unidad mal escrita)
+  °        → "25°F"    (grado sin C)
+  %+texto  → "80%abc"  (porcentaje con sufijo)
+  :        → "25:99"   (hora inválida, ya falló _leer_hora)
+  /        → "32/13"   (fecha inválida, ya falló _leer_fecha)</div>
+    </div>
+  </div>
+
+  <div class="fc lx" id="leer-identificador">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_leer_identificador(linea, pos)</span><span class="fb2">Lee letra o _ seguido de letras, dígitos o _</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Verifica que el primer carácter sea letra o <code>_</code>, luego avanza mientras los caracteres sean alfanuméricos o guion bajo. El resultado se pasa a <code>_clasificar()</code> para determinar si es reservada, sensor, actuador, atributo o identificador.</p>
+      <div class="nb"><strong>Caso especial de email fallido:</strong> si justo después del identificador leído hay un <code>@</code>, <code>_siguiente_token()</code> retorna <code>None</code> en lugar de aceptar el identificador, para que <code>_detectar_invalido()</code> genere el mensaje de email inválido.</div>
     </div>
   </div>
 </section>
 
-<!-- ══ SmartHomeLexer ══ -->
+<section class="section" id="detectar-invalido">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>★ _detectar_invalido()</h2></div>
+  <div class="fc lx new key">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kk">★ nueva</span><span class="fn">_detectar_invalido(linea, pos)</span><span class="fb2">Genera mensajes de error específicos para literales mal formados</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Se llama desde <code>_procesar_linea()</code> cuando <code>_siguiente_token()</code> devuelve <code>None</code> (ningún patrón coincidió). En lugar del error genérico "carácter no reconocido", intenta identificar el patrón inválido concreto y devolver un mensaje detallado.</p>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">linea</td><td class="pty">str</td><td class="pd">Texto completo de la línea actual</td></tr>
+        <tr><td class="pn">pos</td><td class="pty">int</td><td class="pd">Posición donde falló el reconocimiento</td></tr>
+      </tbody></table>
+      <div class="rb"><div class="rl">Devuelve</div><div class="rv">(mensaje_error: str, nuevo_pos: int) o None si no reconoce el patrón inválido</div></div>
+      <table class="dt" style="margin-top:12px">
+        <thead><tr><th>Patrón detectado</th><th>Ejemplo</th><th>Mensaje generado</th></tr></thead>
+        <tbody>
+          <tr><td>°C sin C válida</td><td class="ex">25°F</td><td class="pd">Temperatura invalida: se esperaba °C, no °F</td></tr>
+          <tr><td>Número + letras (unidad desconocida)</td><td class="ex">500luxx</td><td class="pd">Iluminancia invalida: sufijo incorrecto 'luxx' (se esperaba 'lux')</td></tr>
+          <tr><td>% seguido de texto</td><td class="ex">80%basura</td><td class="pd">Porcentaje invalido: no debe haber caracteres tras '%'</td></tr>
+          <tr><td>Fecha con día inválido</td><td class="ex">41/10/2005</td><td class="pd">Fecha invalida: dia 41 fuera de rango (1-31)</td></tr>
+          <tr><td>Fecha con mes inválido</td><td class="ex">01/15/2026</td><td class="pd">Fecha invalida: mes 15 fuera de rango (1-12)</td></tr>
+          <tr><td>Fecha con año inválido</td><td class="ex">01/12/2188</td><td class="pd">Fecha invalida: año 2188 fuera de rango (1900-2099)</td></tr>
+          <tr><td>Hora con HH inválido</td><td class="ex">25:00</td><td class="pd">Hora invalida: hora 25 fuera de rango (00-23)</td></tr>
+          <tr><td>Hora con MM inválido</td><td class="ex">22:74</td><td class="pd">Hora invalida: minutos 74 fuera de rango (00-59)</td></tr>
+          <tr><td>Email con @ pero formato inválido</td><td class="ex">gonza@gmail...com</td><td class="pd">Email invalido: verifique formato usuario@dominio.ext</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="helpers-num">
+  <div class="sh"><span class="sb2 bl">Lexer</span><h2>Helpers numéricos para rangos</h2></div>
+  <div class="fc lx">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">func</span><span class="fn">_num_temperatura / _num_porcentaje / _num_iluminancia</span><span class="fb2">Extraen el float de un token literal para comparar con rangos</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Envoltorios de <code>_extraer_numero()</code> agrupados en el dict <code>_EXTRACTOR</code> para que <code>_validar_rango()</code> los llame sin un bloque <code>if/elif</code>.</p>
+      <div class="fs">_EXTRACTOR = {
+    TT.TEMPERATURA: _num_temperatura,
+    TT.PORCENTAJE:  _num_porcentaje,
+    TT.ILUMINANCIA: _num_iluminancia,
+}</div>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="smarthomelexer">
   <div class="sh"><span class="sb2 bl">Lexer</span><h2>clase SmartHomeLexer</h2></div>
 
   <div class="fc lx" id="tokenizar">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">tokenizar(fuente, num_linea_base=1)</span>
-      <span class="fb2">API principal — sin cambios en v3</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">método</span><span class="fn">tokenizar(fuente, num_linea_base=1)</span><span class="fb2">API principal — tokeniza el fuente completo</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Divide el texto en líneas y llama a <code>_procesar_linea()</code> por cada una. Reinicia <code>errores</code>, <code>advertencias</code> y el contexto al inicio. Agrega un token <code>EOF</code> al final. No cambió en v3.</p>
-      <div class="rb"><div class="rl">Retorna</div><div class="rv">List[Token] — todos los tokens sin blancos ni comentarios, más EOF</div></div>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">fuente</td><td class="pty">str</td><td class="pd">Texto completo del archivo .smart</td></tr>
+        <tr><td class="pn">num_linea_base</td><td class="pty">int</td><td class="pd">Número de línea del que se parte (por defecto 1). Útil para tokenizar fragmentos dentro de un archivo más grande.</td></tr>
+      </tbody></table>
+      <div class="rb"><div class="rl">Devuelve</div><div class="rv">List[Token] — todos los tokens (incluyendo ERROR_LEX) más un EOF al final</div></div>
     </div>
   </div>
 
   <div class="fc lx" id="tokenizar-linea">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">tokenizar_linea(linea, num_linea=1)</span>
-      <span class="fb2">Modo interactivo — sin cambios en v3</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">método</span><span class="fn">tokenizar_linea(linea, num_linea=1)</span><span class="fb2">Tokeniza una sola línea sin reiniciar el contexto</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Variante para el modo interactivo. Procesa una sola línea sin reiniciar el contexto entre llamadas.</p>
+      <p class="fd">Variante para el modo interactivo. No reinicia las variables de contexto entre llamadas, de modo que instrucciones distribuidas en varias líneas mantienen coherencia dispositivo→atributo.</p>
     </div>
   </div>
 
   <div class="fc lx" id="procesar-linea">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_procesar_linea(linea, num_linea, tokens)</span>
-      <span class="fb2">Bucle principal del lexer — modificado en v3</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">método</span><span class="fn">_procesar_linea(linea, num_linea, tokens)</span><span class="fb2">Bucle principal por línea — llama a _siguiente_token y gestiona errores</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Bucle que avanza posición a posición sobre la línea. En v2 llamaba a <code>_REGEX_MASTER.match(linea, pos)</code>; en v3 llama a <code>_siguiente_token(linea, pos, ...)</code>. La lógica alrededor (saltar blancos, manejar None, descartar comentarios, actualizar contexto) no cambió.</p>
-      <div class="newb"><strong>Cambio v3:</strong> <code>_REGEX_MASTER.match()</code> → <code>self._siguiente_token()</code>. El resto del método es idéntico.</div>
+      <p class="fd">Bucle <code>while pos &lt; n</code> que avanza carácter a carácter saltando blancos. Para cada posición prueba <code>_siguiente_token()</code>. Si retorna <code>None</code>, intenta <code>_detectar_invalido()</code> para un error específico; si también falla, emite el error genérico "carácter no reconocido".</p>
+      <p class="fd">Caso especial: si el tipo retornado por <code>_siguiente_token()</code> es <code>TT.ERROR_LEX</code> (palabra parecida a reservada), el método registra el error y emite el token ERROR_LEX sin actualizar contexto.</p>
     </div>
   </div>
 
-  <div class="fc lx new key" id="siguiente-token">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kk">★ nueva</span>
-      <span class="fn">_siguiente_token(linea, pos, num_linea, col)</span>
-      <span class="fb2">Orquesta todas las funciones _leer_*() en orden de precedencia — reemplaza _REGEX_MASTER</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc lx key" id="siguiente-token">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kk">★ clave</span><span class="fn">_siguiente_token(linea, pos, num_linea, col)</span><span class="fb2">Orquesta todas las funciones _leer_*() en orden de precedencia</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Método central del lexer v3. Intenta reconocer el próximo token probando cada tipo en orden de precedencia. Retorna <code>(tipo, valor, nuevo_pos)</code> al primer éxito, o <code>None</code> si ninguno coincide.</p>
-      <div class="kb"><strong>¿Por qué este orden?</strong> El orden importa para evitar ambigüedades. Por ejemplo: <code>250lux</code> debe ser ILUMINANCIA, no ENTERO+IDENTIFICADOR. <code>30m</code> debe ser TIEMPO, no ENTERO+IDENTIFICADOR. <code>user@dom.com</code> debe ser EMAIL, no IDENTIFICADOR. Los tipos más específicos van primero.</div>
+      <p class="fd">Método central del lexer. Prueba cada tipo de token en orden de precedencia y retorna al primer éxito. Si ninguno coincide, retorna <code>None</code> para que el llamador pruebe <code>_detectar_invalido()</code>.</p>
       <div class="fs">Orden de precedencia:
-  1.  _leer_comentario()         //...
-  2.  _leer_cadena()             "texto"
-  3.  _leer_email()              user@dom.ext
-  4.  _leer_temperatura()        25°C, -5°C
-  5.  _leer_con_sufijo('lux')    600lux
-  6.  _leer_con_sufijo('%')      80%
-  7.  _leer_tiempo()             30m, 10s, 1h
-  8.  _leer_fecha()              21/04/2026
-  9.  _leer_hora()               22:00
-  10. comparación de 2 chars     ==  !=  >=  <=
-  11. comparación de 1 char      >  <  =
-  12. punto                      .
-  13. _leer_numero() → FLOTANTE  3.14
-  14. _leer_numero() → ENTERO    42
-  15. _leer_identificador()      WHEN / sensor_luz / foco_ / brillo / nombre</div>
+  1.  _leer_comentario()          //...
+  2.  _leer_cadena()              "texto" o "texto" (tipográficas)
+  3.  _leer_email()               user@dom.ext  (si hay @ adelante)
+  4.  _leer_temperatura()         25°C, -5°C
+  5.  _leer_con_sufijo('lux')     600lux
+  6.  _leer_con_sufijo('%')       80%
+  7.  _leer_tiempo()              30m, 10s, 1h
+  8.  _leer_fecha()               21/04/2026
+  9.  _leer_hora()                22:00
+  10. operadores dobles           == != >= <=
+  11. operadores simples          > < =
+  12. punto                       .
+  13. _leer_numero()              → ENTERO/FLOTANTE
+                                    (solo si _tiene_sufijo_sospechoso() == False)
+  14. _leer_identificador()       → _clasificar()</div>
     </div>
   </div>
 
-  <div class="fc lx" id="clasificar">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_clasificar(palabra)</span>
-      <span class="fb2">Modificado en v3 — eliminado el lower() para palabras reservadas</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc lx key" id="clasificar">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kk">★ clave</span><span class="fn">_clasificar(palabra)</span><span class="fb2">Asigna la categoría correcta a un identificador crudo — 6 niveles de prioridad</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Clasifica un identificador en su categoría. Mantiene 5 niveles de prioridad pero el primero cambió en v3.</p>
-      <div class="newb"><strong>Cambio v3:</strong>
-        En v2 se normalizaba <code>lower = palabra.lower()</code> y se consultaba con la clave en minúsculas.
-        En v3 la consulta es directa con la palabra tal como vino, porque las claves de <code>PALABRAS_RESERVADAS</code> están en MAYÚSCULAS. Escribir <code>when</code> falla la consulta → <code>IDENTIFICADOR</code>.
-      </div>
-      <div class="fs">v2:  lower = palabra.lower()
-     if lower in PALABRAS_RESERVADAS:   ← "when" encontraba "when"
-         return PALABRAS_RESERVADAS[lower], palabra.upper()
-
-v3:  if palabra in PALABRAS_RESERVADAS: ← "when" NO encuentra nada
-         return PALABRAS_RESERVADAS[palabra], palabra
-     lower = palabra.lower()            ← solo para sensor/actuador/atributo</div>
-      <p class="fd">Los pasos 2-5 (sensores, actuadores, atributos, genérico) siguen usando <code>lower()</code> porque son nombres de dispositivos definidos por el usuario, no palabras del lenguaje.</p>
+      <p class="fd">Recibe el texto crudo del identificador y devuelve siempre <code>(tipo, valor)</code>. En v4 devuelve tipos individuales de sensor y actuador en lugar de los genéricos de v3.</p>
+      <div class="fs">1. upper in PALABRAS_RESERVADAS   → TT.WHEN, TT.AND, TT.AZUL...
+                                         (case-insensitive: "when".upper() = "WHEN")
+2. lower.startswith(PREFIJO_SENSOR)  → TT.SENSOR_TEMP, TT.SENSOR_LUZ...
+3. lower.startswith(PREFIJO_ACT)     → TT.ACT_FOCO, TT.ACT_AIRE...
+4. _ultimo_tipo == PUNTO             → TT.ATTR_BRILLO, TT.ATTR_MODO...
+5. _palabra_reservada_similar(upper) → TT.ERROR_LEX + mensaje de sugerencia
+6. fallback                          → TT.IDENTIFICADOR</div>
     </div>
   </div>
 
   <div class="fc lx" id="ctx">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_actualizar_ctx(tok) / _prefijo_canonico(nombre)</span>
-      <span class="fb2">Autómata de contexto dispositivo→atributo — sin cambios en v3</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">método</span><span class="fn">_actualizar_ctx(tok)</span><span class="fb2">Mantiene el contexto dispositivo→atributo para _validar_rango()</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd"><code>_prefijo_canonico()</code> extrae el prefijo canónico de un nombre completo (<code>"aire_acondicionado" → "aire_"</code>). <code>_actualizar_ctx()</code> actualiza las variables de estado <code>_ctx_prefijo</code> y <code>_ctx_attr_tipo</code> en función del tipo del token recién emitido, permitiendo que <code>_validar_rango()</code> sepa en qué contexto se encuentra el próximo literal.</p>
+      <p class="fd">Actualiza <code>_ctx_tipo</code> y <code>_ctx_attr_tipo</code> según el token recién emitido. En v4 usa los sets <code>TT.SENSORES</code> y <code>TT.ACTUADORES</code> para reconocer cualquier tipo individual en vez de comparar contra los dos strings genéricos.</p>
+      <div class="fs">si tok.tipo in TT.SENSORES:    _ctx_tipo = tok.tipo, _ctx_attr_tipo = None
+si tok.tipo in TT.ACTUADORES:  _ctx_tipo = tok.tipo, _ctx_attr_tipo = None
+si tok.tipo in ATRIBUTOS:      _ctx_attr_tipo = tok.tipo
+si tok.tipo in (WHEN,IF,...):  _ctx_tipo = None, _ctx_attr_tipo = None</div>
     </div>
   </div>
 
-  <div class="fc lx" id="rango">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_validar_rango(tok)</span>
-      <span class="fb2">Advertencias semánticas tempranas — sin cambios en v3</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc lx key" id="validar-rango">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kk">★ clave</span><span class="fn">_validar_rango(tok)</span><span class="fb2">Dos niveles: rango absoluto (siempre) + rango específico (con contexto)</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Consulta <code>TABLA_RANGOS</code> con la clave <code>(prefijo_actual, attr_tipo_actual)</code>. Si existe una entrada, usa <code>_EXTRACTOR[tok.tipo](tok.valor)</code> para obtener el número y lo compara con el rango. Si está fuera, agrega una advertencia a <code>self.advertencias</code>. En v3 el extractor llama a <code>_extraer_numero()</code> en lugar de <code>re.match</code>.</p>
+      <p class="fd">Valida el rango de literales TEMPERATURA, PORCENTAJE e ILUMINANCIA en dos etapas:</p>
+      <div class="kb"><strong>Nivel 1 — Rango ABSOLUTO (siempre se ejecuta, haya o no contexto):</strong> si el valor excede el rango más amplio posible para ese tipo de unidad en todo el lenguaje, es imposible que sea válido para ningún sensor/atributo. Se reporta como ERROR LÉXICO y se corta. Ej.: <code>2500lux</code>, <code>300%</code>, <code>200°C</code> → error léxico sin importar si hay un sensor adelante o no.</div>
+      <div class="kb"><strong>Nivel 2 — Rango ESPECÍFICO (solo si hay contexto de dispositivo):</strong> si el valor pasó el rango absoluto pero excede el rango particular del sensor/atributo en contexto, se reporta como ADVERTENCIA. Ej.: <code>35°C</code> es válido en general pero excede los 16-30°C de <code>aire_.temp_obj</code>.</div>
+      <div class="fs">_validar_rango(Token(TEMPERATURA, "200°C", ...))
+  → num = 200.0
+  → rango_abs = (-10, 50)  →  200 > 50  → ERROR LÉXICO  (sin contexto)
+
+_validar_rango(Token(TEMPERATURA, "35°C", ...))  [contexto: aire_.temp_obj]
+  → num = 35.0
+  → rango_abs = (-10, 50)  →  35 ≤ 50  → pasa nivel 1
+  → rango_esp = (16, 30)   →  35 > 30  → ADVERTENCIA</div>
     </div>
   </div>
 </section>
-<!-- ══════════════════ PARSER ══════════════════ -->
+
+<!-- ══════════ PARSER PLY ══════════ -->
 
 <section class="section" id="parser-intro">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>Qué hace este archivo</h2></div>
-  <p>El archivo <code>parser_una_pasada.py</code> recibe la lista de tokens que produjo el Lexer y hace tres cosas a la vez, en un único recorrido:</p>
-  <div class="flow"><span class="h2">1. Verifica la GRAMÁTICA</span>   (análisis sintáctico)
-   ¿Las palabras están en el orden correcto?
-   ¿Cada WHEN tiene su DO y su END?
-   ¿Cada IF tiene su THEN?
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>Cómo funciona PLY en este proyecto</h2></div>
+  <p>PLY (Python Lex-Yacc) se usa únicamente para el análisis sintáctico. El análisis léxico lo sigue haciendo el lexer manual. El análisis LALR(1) construye la tabla de transiciones a partir de las funciones <code>p_*</code>, donde <strong>el docstring ES la regla de producción</strong> y <strong>el cuerpo ES la acción semántica</strong>.</p>
+  <div class="flow"><span class="h2">Cómo PLY inicializa el parser</span>
 
-<span class="h3">2. Verifica el SIGNIFICADO</span>   (análisis semántico)
-   ¿alarma_casa.estado acepta ON/OFF, no un porcentaje?
-   ¿aire_ac.temp_act es de Solo Lectura y no se puede asignar?
-   ¿sensor_movimiento solo compara contra TRUE/FALSE?
+  yacc.yacc()
+    ├─ recorre el módulo buscando funciones que empiecen con p_
+    ├─ por cada una, LEE el docstring como texto de gramática
+    ├─ junta todas las reglas → gramática completa
+    ├─ construye la tabla LALR(1) (autómata de estados)
+    └─ asocia cada regla con su función Python para ejecutarla en la reducción
 
-<span class="h4">3. Si todo está bien, TRADUCE a HTML</span>
-   Genera el archivo .html con los bloques de sensores y actuadores</div>
-  <div class="newb"><strong>Analogía simple:</strong> el parser es como alguien que lee el archivo .smart en voz alta, palabra por palabra. Mientras lee, chequea que la gramática esté bien (corrector ortográfico), que los valores tengan sentido (corrector de lógica), y al mismo tiempo va escribiendo el HTML. Todo en un solo recorrido, sin volver atrás.</div>
+<span class="h3">Cómo se ejecuta una reducción</span>
+
+  PLY lee tokens del LexerAdaptador.token()
+  acumula en la pila hasta encontrar el patrón de una regla
+  llama a la función p_xxx(p) con:
+      p[0] = símbolo izquierdo (donde se guarda el resultado)
+      p[1] = primer símbolo derecho  ← ya es el Token de lexer_v4
+      p[2] = segundo símbolo derecho
+      ...
+
+  <span class="h4">NOTA CRÍTICA:</span> en las reglas p_*, p[i] es _PLYToken.value = Token de lexer_v4
+  En p_error, p es el _PLYToken CRUDO → hay que usar p.value para llegar al Token</div>
 </section>
 
-<section class="section" id="gramatica">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>Gramática con acciones semánticas</h2></div>
-  <p>Las llaves <code>{ … }</code> son las <em>acciones semánticas</em>: código Python que se ejecuta en el momento exacto en que esa parte de la regla fue reconocida.</p>
-  <div class="flow"><span class="h2">programa</span>    ::= { instruccion }+  EOF
-                <span class="h3">{ escribir inicio del HTML }</span>          <span class="h3">{ escribir final del HTML }</span>
-
-<span class="h2">instruccion</span> ::= bloque_when | bloque_every | condicional | asignacion_suelta
-
-<span class="h2">bloque_when</span> ::= WHEN condicion DO
-                <span class="h3">{ abrir &lt;div&gt; de sección + título "Cuando: …" }</span>
-                <span class="h3">{ dibujar bloque verde de cada sensor mencionado }</span>
-                cuerpo  END
-                <span class="h3">{ cerrar &lt;/div&gt; }</span>
-
-<span class="h2">bloque_every</span>::= EVERY TIEMPO DO
-                <span class="h3">{ abrir &lt;div&gt; de sección + título "Cada: TIEMPO" }</span>
-                cuerpo  END
-                <span class="h3">{ cerrar &lt;/div&gt; }</span>
-
-<span class="h2">cuerpo</span>      ::= accion+
-                <span class="h3">{ guarda en memoria las asignaciones, agrupadas por actuador }</span>
-                <span class="h3">{ al llegar a END o ELSE: dibuja un bloque gris por cada actuador }</span>
-
-<span class="h2">condicional</span> ::= IF condicion THEN
-                <span class="h3">{ abrir &lt;div&gt; + título "Si: …" + sensores }</span>
-                cuerpo
-                [ ELSE  <span class="h3">{ cerrar div anterior, abrir nuevo "En caso contrario" }</span>
-                  cuerpo ]
-                END  <span class="h3">{ cerrar &lt;/div&gt; }</span>
-
-<span class="h2">asignacion</span>  ::= ACTUADOR PUNTO ATTR OP_ASIG valor
-                <span class="h3">{ ★ validar atributo + tipo de valor }</span>
-                <span class="h3">{ guardar &lt;li&gt; en memoria del actuador, NO dibujar todavía }</span>
-
-<span class="h2">expr_cond</span>   ::= SENSOR op valor       <span class="h3">{ ★ validar tipo según el sensor }</span>
-               | ACTUADOR.ATTR op valor  <span class="h3">{ ★ validar tipo según el atributo }</span>
-               | NOT expr_cond | TRUE | FALSE | ON | OFF</div>
-</section>
-
-<section class="section" id="constantes-parser">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>Constantes y tablas del parser</h2></div>
-
-  <div class="fc pr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kd">set</span>
-      <span class="fn">TIPOS_OP_CMP  /  TIPOS_ATTR  /  TIPOS_VALOR</span>
-      <span class="fb2">Grupos de tokens permitidos en cada punto de la gramática</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Son <em>sets</em> de Python que agrupan tipos de token similares, para poder escribir <code>_consumir(*TIPOS_OP_CMP)</code> en vez de listar los seis operadores uno por uno.</p>
-      <div class="fs">TIPOS_OP_CMP = { ==, !=, >, &lt;, >=, &lt;= }
-TIPOS_ATTR   = { .estado, .brillo, .color, .modo, .temp_obj, .temp_act, .posicion ... }
-TIPOS_VALOR  = { 25°C, 80%, 600lux, ON, OFF, TRUE, FRIO, 42, "texto", email, ... }</div>
-    </div>
-  </div>
-
-  <div class="fc pr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kd">dict</span>
-      <span class="fn">TIPOS_VALOR_SENSOR  /  _NOMBRE_TIPO_SENSOR</span>
-      <span class="fb2">Qué tipo de valor acepta cada sensor en una comparación</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Responde la pregunta: <em>"si comparo sensor_movimiento == algo, ¿qué puede ser ese algo?"</em>. Cada sensor solo acepta el tipo de dato que le corresponde según la consigna.</p>
-      <div class="fs">TIPOS_VALOR_SENSOR = {
-    "sensor_temp":       { TEMPERATURA },    ← solo 26°C, -5°C, etc.
-    "sensor_humedad":    { PORCENTAJE },     ← solo 80%, 100%, etc.
-    "sensor_luz":        { ILUMINANCIA },    ← solo 600lux, etc.
-    "sensor_movimiento": { TRUE, FALSE },    ← solo booleano
-    "sensor_humo":       { TRUE, FALSE },    ← solo booleano
-}
-_NOMBRE_TIPO_SENSOR = {
-    "sensor_temp":       "TEMPERATURA (ej. 26°C)",
-    "sensor_movimiento": "TRUE o FALSE",        ← texto para mensajes de error
-    ...
-}</div>
-    </div>
-  </div>
-
-  <div class="fc pr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kd">dict</span>
-      <span class="fn">_OP_TEXTO  /  _LABEL_SENSOR  /  _UNIDAD_SENSOR  /  _CSS_*</span>
-      <span class="fb2">Tablas de traducción para que el HTML se vea legible</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd"><strong>_OP_TEXTO</strong>: convierte el nombre interno del operador a su símbolo (<code>OP_GTE → ">="</code>). <strong>_LABEL_SENSOR</strong>: convierte el nombre técnico a texto amigable (<code>"sensor_temp" → "Temperatura"</code>). <strong>_UNIDAD_SENSOR</strong>: agrega la unidad al bloque verde (<code>"sensor_temp" → "°C"</code>). <strong>_CSS_SENSOR / _CSS_ACTUADOR / _CSS_SECCION</strong>: los estilos que pide la consigna, guardados una sola vez.</p>
-    </div>
-  </div>
-</section>
-
-<section class="section" id="tabla-especificacion">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>★ ESPECIFICACION_ATRIBUTOS</h2></div>
-
+<section class="section" id="especificacion">
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>ESPECIFICACION_ATRIBUTOS</h2></div>
   <div class="fc pr key">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kk">★ clave</span>
-      <span class="fn">ESPECIFICACION_ATRIBUTOS</span>
-      <span class="fb2">La tabla de la consigna traducida a código — define qué es válido por atributo y actuador</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk kk">★ clave</span><span class="fn">ESPECIFICACION_ATRIBUTOS</span><span class="fb2">La tabla de la consigna en código — (actuador, atributo) → (tipos_válidos, solo_lectura, desc)</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Diccionario que para cada combinación <code>(prefijo_actuador, tipo_atributo)</code> dice tres cosas: qué tipos de valor acepta, si es de solo lectura, y cómo describir el error. Es la "fuente de verdad" para todas las validaciones semánticas de atributos.</p>
-      <div class="fs">Clave                              → (tipos_válidos,    solo_lectura, descripción)
-("foco_",  ATTR_ESTADO)            → ({ON, OFF},          False,        "BOOL (ON/OFF)")
-("foco_",  ATTR_BRILLO)            → ({PORCENTAJE},        False,        "PERCENT (0%-100%)")
-("foco_",  ATTR_COLOR)             → ({BLANCO,ROJO,AZUL},  False,        "NOMBRE (blanco/rojo/azul)")
-("aire_",  ATTR_ESTADO)            → ({ON, OFF},           False,        "BOOL (ON/OFF)")
-("aire_",  ATTR_MODO)              → ({FRIO,CALOR,VENT},   False,        "DISCRETO (FRIO/CALOR/VENT)")
-("aire_",  ATTR_TEMP_OBJ)          → ({TEMPERATURA},       False,        "TEMP (16°C-30°C)")
-("aire_",  ATTR_TEMP_ACT)          → ({TEMPERATURA},       True,         "TEMP — Solo Lectura")
-("persiana_", ATTR_POSICION)       → ({PORCENTAJE},        False,        "PERCENT (0%-100%)")
-("cerradura_", ATTR_ESTADO)        → ({ON, OFF},           False,        "BOOL (ON/OFF)")
-("reloj_", ATTR_HORA)              → ({HORA},              True,         "TIME — Solo Lectura")
-("reloj_", ATTR_FECHA)             → ({FECHA},             True,         "DATE — Solo Lectura")
-("altavoz_", ATTR_VOLUMEN)         → ({PORCENTAJE},        False,        "PERCENT (0%-100%)")
-("altavoz_", ATTR_MUTE)            → ({ON, OFF},           False,        "BOOL (ON/OFF)")
-("altavoz_", ATTR_MENSAJE)         → ({CADENA},            False,        "texto (cadena)")
-("altavoz_", ATTR_EMAIL_NOTIF)     → ({EMAIL},             False,        "email")
-("alarma_", ATTR_ESTADO)           → ({ON, OFF},           False,        "BOOL (ON/OFF)")
-("alarma_", ATTR_ACTIVADA)         → ({ON, OFF},           False,        "BOOL (ON/OFF)")</div>
-      <div class="kb"><strong>Ejemplo de uso:</strong> si el código encuentra <code>altavoz_comedor.mute = 100%</code>, calcula el prefijo (<code>"altavoz_"</code>), arma la clave <code>("altavoz_", ATTR_MUTE)</code>, la busca en la tabla → encuentra <code>({ON, OFF}, False, "BOOL (ON/OFF)")</code>. Como <code>100%</code> es PORCENTAJE y PORCENTAJE no está en <code>{ON, OFF}</code>, genera el error: <em>"'100%' no es valido para 'altavoz_comedor.mute' → se esperaba BOOL (ON/OFF)"</em>.</div>
+      <p class="fd">Diccionario que para cada combinación <code>(TT.ACT_*, TT.ATTR_*)</code> define qué tipos de valor acepta, si es de solo lectura, y el texto del error. En v4 las claves usan los tipos individuales de actuador.</p>
+      <div class="fs">(TT.ACT_FOCO,  TT.ATTR_ESTADO)   → ({ON, OFF},              False, "BOOL (ON/OFF)")
+(TT.ACT_FOCO,  TT.ATTR_COLOR)    → ({BLANCO, ROJO, AZUL},   False, "NOMBRE (BLANCO/ROJO/AZUL)")
+(TT.ACT_AIRE,  TT.ATTR_TEMP_OBJ) → ({TEMPERATURA},           False, "TEMP (16°C-30°C)")
+(TT.ACT_AIRE,  TT.ATTR_TEMP_ACT) → ({TEMPERATURA},           True,  "TEMP — Solo Lectura")
+(TT.ACT_RELOJ, TT.ATTR_HORA)     → ({HORA},                  True,  "TIME — Solo Lectura")
+...</div>
+      <div class="kb"><strong>Cómo se usa:</strong> si el código encuentra <code>altavoz_x.mute = 100%</code>, el método <code>chk_attr()</code> arma la clave <code>(TT.ACT_ALTAVOZ, TT.ATTR_MUTE)</code>, la busca en la tabla → <code>({ON, OFF}, False, "BOOL (ON/OFF)")</code>. Como <code>100%</code> es PORCENTAJE y no está en <code>{ON, OFF}</code>, genera el error semántico.</div>
     </div>
   </div>
 </section>
 
-<section class="section" id="error-sint">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>clase ErrorSintactico</h2></div>
+<section class="section" id="estado">
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>clase _Estado</h2></div>
   <div class="fc pr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kd">exception</span>
-      <span class="fn">ErrorSintactico(Exception)</span>
-      <span class="fb2">El aviso que se lanza cuando la gramática no se respeta</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk kc">class</span><span class="fn">_Estado</span><span class="fb2">Estado global compartido entre todas las reglas PLY</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Excepción de Python que se lanza cuando el parser espera un token y encuentra otro. Se puede "atrapar" más arriba para guardar el error y seguir analizando el resto del archivo.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro / Campo</th><th>Tipo</th><th>Qué contiene</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">mensaje</td><td class="pty">str</td><td class="pd">Texto describiendo el problema. Ej: <code>"Se esperaba DO pero se encontro THEN"</code></td></tr>
-          <tr><td class="pn">tok</td><td class="pty">Token</td><td class="pd">El token que el parser encontró cuando esperaba otro. Tiene <code>.linea</code> y <code>.col</code> para saber exactamente dónde ocurrió.</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">str(error) →
-"Error sintactico | Linea   5, Col  12 | Se esperaba DO pero se encontro THEN (token: 'THEN' [THEN])"</div>
+      <p class="fd">PLY usa funciones globales para las reglas <code>p_*</code>, lo que impide pasar estado directamente. <code>_Estado</code> es un objeto global que todas las reglas pueden leer y escribir. Se reinicia en cada llamada a <code>compilar()</code>.</p>
+      <table class="pt"><thead><tr><th>Método / campo</th><th>Qué hace</th></tr></thead><tbody>
+        <tr><td class="pn">reset(titulo)</td><td class="pd">Vacía errores, buffer HTML y pila de acumuladores</td></tr>
+        <tr><td class="pn">emit(s)</td><td class="pd">Agrega una línea al buffer HTML <code>_out</code></td></tr>
+        <tr><td class="pn">html()</td><td class="pd">Une el buffer con <code>"\n".join(_out)</code> y devuelve el HTML completo</td></tr>
+        <tr><td class="pn">push_acum()</td><td class="pd">Abre un nuevo nivel de acumulador (nuevo cuerpo/bloque)</td></tr>
+        <tr><td class="pn">pop_acum()</td><td class="pd">Cierra el nivel actual</td></tr>
+        <tr><td class="pn">acum()</td><td class="pd">Devuelve el OrderedDict del nivel actual</td></tr>
+        <tr><td class="pn">anotar(nombre, li)</td><td class="pd">Agrega un <code>&lt;li&gt;</code> al acumulador del actuador dado</td></tr>
+        <tr><td class="pn">volcar(ind)</td><td class="pd">Emite bloques grises de todos los actuadores acumulados y limpia el dict</td></tr>
+        <tr><td class="pn">bloque_sensor(...)</td><td class="pd">Emite un bloque verde de sensor con label y unidad legibles</td></tr>
+        <tr><td class="pn">html_item(attr, val)</td><td class="pd">Construye el string <code>&lt;li&gt;</code> para una asignación (con soporte EMAIL/CADENA)</td></tr>
+        <tr><td class="pn">chk_sensor(...)</td><td class="pd">Valida que el tipo de valor sea compatible con el sensor</td></tr>
+        <tr><td class="pn">chk_attr(...)</td><td class="pd">Valida atributo, solo-lectura y tipo de valor usando ESPECIFICACION_ATRIBUTOS</td></tr>
+      </tbody></table>
     </div>
   </div>
 </section>
 
-<section class="section" id="parserhtml">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>clase ParserHTML</h2></div>
-  <p>La clase principal. Cada método que empieza con <code>_</code> es interno y corresponde a una regla de la gramática o a una tarea auxiliar de generación HTML.</p>
-
-  <div class="fc pr" id="par-init">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">__init__(tokens, titulo)</span>
-      <span class="fb2">Prepara todo antes de empezar a analizar</span>
-      <span class="ft">›</span>
-    </div>
+<section class="section" id="adaptador">
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>clase LexerAdaptador</h2></div>
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kc">class</span><span class="fn">LexerAdaptador</span><span class="fb2">Convierte List[Token] al protocolo que espera PLY</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Se ejecuta automáticamente al crear un objeto <code>ParserHTML(...)</code>. Guarda los tokens a analizar, inicializa el cursor en 0, y prepara las listas donde se van a acumular los errores y el HTML resultante.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">tokens</td><td class="pty">List[Token]</td><td class="pd">La lista de tokens que devolvió el Lexer. Se guarda en <code>self._tokens</code> y se le agrega un EOF al final por seguridad.</td></tr>
-          <tr><td class="pn">titulo</td><td class="pty">str</td><td class="pd">Nombre del archivo fuente (sin extensión). Se usa como título del documento HTML generado.</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">self._tokens  = tokens + [EOF]  ← la lista de tokens a recorrer
-self._pos     = 0               ← empieza apuntando al primer token
-self._titulo  = titulo          ← para el &lt;title&gt; del HTML
-self.errores  = []              ← acá se van guardando los errores encontrados
-self._out     = []              ← acá se va armando el HTML, línea por línea</div>
+      <p class="fd">PLY espera un objeto con método <code>token()</code> que devuelva objetos con <code>.type</code>, <code>.value</code>, <code>.lineno</code>, <code>.lexpos</code>. El adaptador recibe la lista de tokens del lexer manual y los sirve uno a uno en ese formato.</p>
+      <div class="fs">adaptador.token() devuelve:
+    _PLYToken.type   = tok.tipo   ← string que PLY usa para emparejar reglas
+    _PLYToken.value  = tok        ← Token completo de lexer_v4
+    _PLYToken.lineno = tok.linea
+    _PLYToken.lexpos = tok.col
+
+En las reglas p_*:
+    PLY extrae .value automáticamente → p[i] ya es el Token de lexer_v4
+    → p[i].tipo, p[i].valor, p[i].linea, p[i].col
+
+En p_error:
+    p es el _PLYToken CRUDO → hay que usar p.value para llegar al Token</div>
+      <p class="fd">El adaptador filtra los tipos <code>EOF</code>, <code>COMENTARIO</code>, <code>DESCONOCIDO</code> y <code>ERROR_LEX</code> antes de servir los tokens, para que estos no lleguen al parser y no generen errores sintácticos adicionales.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="plytoken">
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>clase _PLYToken</h2></div>
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kc">class</span><span class="fn">_PLYToken</span><span class="fb2">Objeto mínimo compatible con el protocolo de token de PLY — sin __slots__</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">Clase vacía (solo <code>pass</code>) sin ningún atributo declarado. El adaptador le asigna <code>.type</code>, <code>.value</code>, <code>.lineno</code> y <code>.lexpos</code> dinámicamente.</p>
+      <div class="goneb"><strong>¿Por qué no usar __slots__?</strong> Cuando PLY detecta un error sintáctico, ejecuta internamente <code>errtoken.lexer = lexer</code> sobre el token que lo causó. Si la clase tiene <code>__slots__</code> sin incluir <code>'lexer'</code>, esa asignación lanza: <code>AttributeError: '_PLYToken' object has no attribute 'lexer' and no __dict__</code>. La solución es usar una clase normal (con <code>__dict__</code>) que permita asignaciones dinámicas.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tokens-ply">
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>lista tokens (requerida por PLY)</h2></div>
+  <div class="fc pr">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kd">tuple</span><span class="fn">tokens</span><span class="fb2">Lista de todos los tipos de token que el parser puede recibir</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd">PLY requiere una variable global <code>tokens</code> con los nombres de todos los tipos que pueden aparecer en las reglas gramaticales. Debe coincidir exactamente con los <code>.type</code> que devuelve el <code>LexerAdaptador</code>. Incluye los 5 sensores individuales, los 7 actuadores individuales, los 15 atributos, y todos los literales y operadores.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="reglas-ply">
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>Reglas gramaticales p_*()</h2></div>
+  <p>En PLY, <strong>el docstring de la función ES la regla de producción</strong> (PLY lo parsea en tiempo de ejecución) y <strong>el cuerpo de la función ES la acción semántica</strong> que se ejecuta cuando esa regla se reduce. El parámetro <code>p</code> es una lista-like donde <code>p[0]</code> es el símbolo izquierdo y <code>p[1..n]</code> son los símbolos derechos.</p>
+
+  <div class="fc pr" id="p-programa">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_programa / p_instruccion_lista_multi / p_instruccion_lista_uno / p_instruccion</span><span class="fb2">El esqueleto del programa — cómo se acumulan las instrucciones</span><span class="ft">›</span></div>
+    <div class="fb">
+      <p class="fd"><code>instruccion_lista</code> es una regla recursiva por izquierda que acumula instrucciones una a una, igual que una lista enlazada. Cada vez que PLY termina de reconocer una instrucción completa (un WHEN...END, un EVERY...END, etc.), la "agrega" a la lista acumulada.</p>
+      <div class="fs">instruccion_lista : instruccion_lista instruccion   ← "la lista que ya teníamos + una más"
+                      | instruccion                   ← "la primera instrucción"
+
+instruccion : bloque_when | bloque_every | condicional | asignacion_suelta
+
+Acción semántica: pass (el trabajo ya lo hicieron las reglas más específicas)</div>
+      <div class="nb"><strong>¿Por qué pass?</strong> Estas reglas no necesitan hacer nada porque la traducción a HTML ocurre dentro de las reglas más específicas (<code>p_bloque_when</code>, <code>p_asignacion</code>, etc.) en el momento en que cada parte se reconoce.</div>
     </div>
   </div>
 
-  <div class="fc pr" id="par-cursor">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_actual()  /  _es(*tipos)</span>
-      <span class="fb2">Ver el token actual sin avanzar</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="p-when">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_bloque_when_open / p_bloque_when</span><span class="fb2">WHEN condicion DO → ... → END</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd"><code>_actual()</code> devuelve el token en la posición <code>self._pos</code> sin moverla. <code>_es(*tipos)</code> pregunta si ese token es de alguno de los tipos indicados.</p>
-      <table class="pt">
-        <thead><tr><th>Método</th><th>Parámetros</th><th>Devuelve</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">_actual()</td><td class="pd">ninguno</td><td class="pd"><code>Token</code> — el token que está en la posición actual del cursor</td></tr>
-          <tr><td class="pn">_es(*tipos)</td><td class="pd"><code>*tipos</code>: uno o más strings de tipo TT, ej. <code>TT.WHEN, TT.IF</code></td><td class="pd"><code>bool</code> — True si el token actual es de alguno de esos tipos</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">if self._es(TT.WHEN):                    # ¿el token actual es WHEN?
-    self._bloque_when(nivel)
+      <p class="fd">Se divide en dos reglas porque PLY no permite acciones intermedias dentro de una producción. <code>bloque_when_open</code> se reduce justo al reconocer <code>DO</code>, antes de procesar el cuerpo. Eso permite emitir la cabecera HTML <strong>antes</strong> de que las asignaciones del cuerpo anoten en el acumulador.</p>
+      <table class="pt"><thead><tr><th>Parámetro p[]</th><th>Qué es</th></tr></thead><tbody>
+        <tr><td class="pn">p[1]</td><td class="pd">Token(WHEN)</td></tr>
+        <tr><td class="pn">p[2]</td><td class="pd">Tupla (texto, sensores) devuelta por las reglas de condicion</td></tr>
+        <tr><td class="pn">p[3]</td><td class="pd">Token(DO)</td></tr>
+      </tbody></table>
+      <div class="fs">p_bloque_when_open: acción semántica
+  texto, sensores = p[2]
+  emit &lt;div&gt; + &lt;h2&gt;Cuando: {texto}&lt;/h2&gt;
+  para cada sensor: bloque_sensor() → &lt;div verde&gt;
+  push_acum()       ← abre el nivel de este cuerpo
+  p[0] = ind        ← devuelve la indentación para usarla en p_bloque_when
 
-if self._es(TT.END, TT.ELSE, TT.EOF):   # ¿es END, ELSE o fin de archivo?
-    break</div>
+p_bloque_when: acción semántica
+  volcar(ind+"  ")  ← emite bloques grises de actuadores pendientes
+  pop_acum()
+  emit &lt;/div&gt;</div>
     </div>
   </div>
 
-  <div class="fc pr" id="par-consumir">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_consumir(*tipos)</span>
-      <span class="fb2">Tomar el token actual, validando que sea del tipo esperado</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="p-every">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_bloque_every_open / p_bloque_every</span><span class="fb2">EVERY TIEMPO DO → ... → END</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Si el token actual es de uno de los tipos indicados, lo "consume" (avanza el cursor) y lo devuelve. Si no es del tipo esperado, lanza un <code>ErrorSintactico</code> explicando qué se esperaba y qué había.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">*tipos</td><td class="pty">str (TT.*)</td><td class="pd">Uno o más tipos de token aceptables. Si el token actual es cualquiera de ellos, se consume. Si no, error.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>Token</code> — el token que fue consumido, para poder usar su valor (<code>.valor</code>, <code>.linea</code>, etc.)</div></div>
-      <div class="fs">tok_when   = self._consumir(TT.WHEN)       ← solo acepta WHEN
-tok_tiempo = self._consumir(TT.TIEMPO)     ← solo acepta 30m, 1h, etc.
-tok_attr   = self._consumir(*TIPOS_ATTR)   ← acepta cualquier atributo conocido</div>
+      <p class="fd">Igual estructura que WHEN pero más simple: en vez de parsear una condición, solo consume el token TIEMPO directamente.</p>
+      <table class="pt"><thead><tr><th>Parámetro p[]</th><th>Qué es</th></tr></thead><tbody>
+        <tr><td class="pn">p[2]</td><td class="pd">Token(TIEMPO) — el valor del intervalo, ej. <code>"30m"</code></td></tr>
+      </tbody></table>
     </div>
   </div>
 
-  <div class="fc pr" id="par-avanzar">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_avanzar()</span>
-      <span class="fb2">Tomar el token actual sin validar su tipo</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr key" id="p-cuerpo">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kk">★ clave</span><span class="fn">p_cuerpo_multi / p_cuerpo_uno / p_accion_asig / p_accion_cond</span><span class="fb2">El cuerpo acumula acciones — igual que instruccion_lista pero dentro de un bloque</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Avanza el cursor y devuelve el token que estaba en la posición actual. No hace ninguna validación de tipo. Se usa cuando el tipo ya fue verificado con <code>_es()</code> justo antes.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">ninguno</td><td class="pty">—</td><td class="pd">No recibe parámetros</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>Token</code> — el token que estaba en la posición actual antes de avanzar</div></div>
-      <div class="fs">if self._es(TT.ELSE):
-    self._avanzar()    ← ya sabemos que es ELSE, no hace falta validar de nuevo
+      <p class="fd">El cuerpo es recursivo por izquierda igual que <code>instruccion_lista</code>. Cada vez que PLY reduce una <code>accion</code> (asignación o condicional anidado), la "agrega" al cuerpo acumulado. Las acciones semánticas reales están en <code>p_asignacion</code> y <code>p_if_inner_open</code>, no aquí.</p>
+      <div class="fs">cuerpo : cuerpo accion    ← "más acciones a las que ya tenía"
+       | accion             ← "primera acción del cuerpo"
 
-if self._es(TT.AND, TT.OR):
-    operador = self._avanzar().valor   ← tomamos el token y guardamos "AND" o "OR"</div>
+accion : asignacion         ← anota en el acumulador
+       | condicional_inner  ← vuelca actuadores + emite nuevo div</div>
     </div>
   </div>
 
-  <div class="fc pr" id="par-sincronizar">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_sincronizar(*tipos_seguimiento)</span>
-      <span class="fb2">Después de un error, buscar un punto seguro para seguir leyendo</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="p-if">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_if_open / p_condicional_then / p_condicional_then_else</span><span class="fb2">IF condicion THEN ... [ELSE ...] END a nivel raíz</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Descarta tokens uno por uno hasta encontrar alguno que sea del tipo indicado, desde donde el análisis puede retomarse. Permite seguir buscando errores en el resto del archivo en lugar de rendirse en el primero.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">*tipos_seguimiento</td><td class="pty">str (TT.*)</td><td class="pd">Los tipos de token donde el análisis puede retomarse con seguridad. Cuando se encuentra alguno de ellos, el método se detiene.</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">// Si algo falla a nivel de instrucción, buscar el próximo inicio de bloque
-self._sincronizar(TT.WHEN, TT.EVERY, TT.IF, TT.END, TT.EOF)
-
-// Si algo falla dentro del cuerpo, buscar la siguiente acción o el cierre
-self._sincronizar(TT.ACTUADOR, TT.IF, TT.END, TT.ELSE, TT.EOF)</div>
+      <p class="fd"><code>p_if_open</code> se reduce justo al reconocer <code>THEN</code>, permitiendo emitir el encabezado HTML antes del cuerpo. Usa <code>&lt;h2&gt;</code> (nivel raíz). El ELSE es opcional.</p>
+      <table class="pt"><thead><tr><th>Parámetro p[]</th><th>Qué es</th></tr></thead><tbody>
+        <tr><td class="pn">p[1]</td><td class="pd">Token(IF)</td></tr>
+        <tr><td class="pn">p[2]</td><td class="pd">Tupla (texto, sensores) de las reglas de condicion</td></tr>
+        <tr><td class="pn">p[3]</td><td class="pd">Token(THEN)</td></tr>
+      </tbody></table>
     </div>
   </div>
 
-  <div class="fc pr key" id="par-validar-attr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kk">★ clave</span>
-      <span class="fn">_validar_tipo_atributo(nombre_act, tok_attr, tok_val, es_lectura)</span>
-      <span class="fb2">Verifica que (actuador, atributo, valor) sea una combinación válida</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="p-else">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_else_open</span><span class="fb2">ELSE — vuelca actuadores, cierra div THEN, abre div ELSE</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Consulta <code>ESPECIFICACION_ATRIBUTOS</code> y verifica tres cosas en orden: que el atributo exista para ese tipo de actuador, que no se esté intentando escribir algo de solo lectura, y que el tipo del valor coincida con lo esperado. Si algo falla, agrega un error a <code>self.errores</code> y continúa.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nombre_act</td><td class="pty">str</td><td class="pd">Nombre completo del actuador, ej. <code>"aire_acondicionado"</code>. Se usa para extraer el prefijo con <code>_prefijo_actuador()</code>.</td></tr>
-          <tr><td class="pn">tok_attr</td><td class="pty">Token</td><td class="pd">El token del atributo (ej. el token de <code>.temp_obj</code>). Se usa <code>.tipo</code> para la clave de búsqueda y <code>.linea</code>/<code>.col</code> para el mensaje de error.</td></tr>
-          <tr><td class="pn">tok_val</td><td class="pty">Token</td><td class="pd">El token del valor (ej. el token de <code>100%</code>). Se compara <code>.tipo</code> contra los tipos válidos del atributo.</td></tr>
-          <tr><td class="pn">es_lectura</td><td class="pty">bool</td><td class="pd"><code>True</code> si el atributo se está <em>leyendo</em> dentro de una condición (IF/WHEN). <code>False</code> si se está <em>escribiendo</em> en una asignación. Controla si los atributos de Solo Lectura generan error o no.</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">Pregunta 1 → ¿Existe ese atributo para ese actuador?
-    foco_sala.modo  → "modo" no está en la tabla para "foco_" → ERROR
-
-Pregunta 2 → ¿Se intenta ESCRIBIR algo de Solo Lectura? (solo si es_lectura=False)
-    aire_ac.temp_act = 25°C  → temp_act es Solo Lectura → ERROR
-    IF aire_ac.temp_act > 25°C  → es_lectura=True, NO da error ← correcto
-
-Pregunta 3 → ¿El tipo del valor coincide?
-    altavoz.mute = 100%   → mute espera ON/OFF, no PORCENTAJE → ERROR
-    altavoz.mute = OFF    → OFF está en {ON, OFF} → OK</div>
+      <p class="fd">Al reconocer la palabra <code>ELSE</code>, antes de empezar a procesar el cuerpo del ELSE hay que: (1) volcar los actuadores pendientes del cuerpo THEN, (2) cerrar su <code>&lt;div&gt;</code>, y (3) abrir un nuevo <code>&lt;div&gt;</code> con el título "En caso contrario". Todo esto en la acción semántica de <code>p_else_open</code>.</p>
     </div>
   </div>
 
-  <div class="fc pr" id="par-prefijo-act">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_prefijo_actuador(nombre)</span>
-      <span class="fb2">Averigua a qué familia de actuador pertenece un nombre</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="p-if-inner">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_if_inner_open / p_condicional_inner_then / p_else_inner_open</span><span class="fb2">IF anidado dentro de un cuerpo (usa h3 en vez de h2)</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Recorre la lista de prefijos conocidos y devuelve el primero que coincida como inicio del nombre. Necesario porque el usuario puede nombrar sus actuadores libremente mientras empiece con el prefijo correcto.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nombre</td><td class="pty">str</td><td class="pd">Nombre completo del actuador tal como aparece en el archivo, ej. <code>"aire_acondicionado"</code>, <code>"foco_salon"</code>.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>str</code> — el prefijo canónico, ej. <code>"aire_"</code>, <code>"foco_"</code>, <code>"altavoz_"</code>. Si no reconoce ninguno, devuelve el nombre tal cual.</div></div>
-      <div class="fs">"aire_acondicionado"  → "aire_"
-"foco_salon"          → "foco_"
-"altavoz_comedor"     → "altavoz_"
-"cerradura_principal" → "cerradura_"</div>
+      <p class="fd">Reglas equivalentes a las del IF raíz pero para IFs que aparecen dentro de un WHEN o EVERY. La diferencia principal es que <code>p_if_inner_open</code> llama a <code>_st.volcar()</code> antes de emitir el encabezado del IF, para que los actuadores que estaban antes del IF aparezcan primero en el HTML.</p>
+      <div class="fs">p_if_inner_open: acción semántica
+  volcar(ind)       ← vaciar actuadores ANTES del IF anidado (orden visual)
+  emit &lt;div&gt; + &lt;h3&gt;Si: {texto}&lt;/h3&gt;
+  para cada sensor: bloque_sensor()
+  push_acum()</div>
     </div>
   </div>
 
-  <div class="fc pr" id="par-prefijo-sen">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_prefijo_sensor(nombre)</span>
-      <span class="fb2">Lo mismo que el anterior, pero para sensores</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr key" id="p-asig">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kk">★ clave</span><span class="fn">p_asignacion / p_asignacion_suelta</span><span class="fb2">actuador.attr = valor — valida y anota en memoria sin emitir HTML</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Igual que <code>_prefijo_actuador()</code> pero para sensores. Necesario porque un sensor puede tener un nombre extendido como <code>sensor_temp_exterior</code>, y este método lo reduce al prefijo base para buscarlo en <code>TIPOS_VALOR_SENSOR</code>.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nombre</td><td class="pty">str</td><td class="pd">Nombre completo del sensor, ej. <code>"sensor_temp_exterior"</code>, <code>"sensor_luz"</code>.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>str</code> — el prefijo canónico del sensor, ej. <code>"sensor_temp"</code>, <code>"sensor_movimiento"</code>.</div></div>
-      <div class="fs">"sensor_temp_exterior"   → "sensor_temp"
-"sensor_movimiento_sala" → "sensor_movimiento"
-"sensor_luz"             → "sensor_luz"</div>
+      <p class="fd"><code>p_asignacion</code> (dentro de un cuerpo) valida con <code>chk_attr()</code> y anota el <code>&lt;li&gt;</code> en el acumulador del actuador. <strong>NO emite HTML directamente</strong>: el bloque gris se emite después cuando se llama a <code>volcar()</code>.</p>
+      <p class="fd"><code>p_asignacion_suelta</code> (nivel raíz, sin WHEN/EVERY contenedor) sí emite el bloque gris inmediatamente.</p>
+      <table class="pt"><thead><tr><th>p[i]</th><th>Qué es</th></tr></thead><tbody>
+        <tr><td class="pn">p[1]</td><td class="pd">Token del actuador (ej. Token(ACT_FOCO, "foco_sala", ...))</td></tr>
+        <tr><td class="pn">p[2]</td><td class="pd">Token(PUNTO)</td></tr>
+        <tr><td class="pn">p[3]</td><td class="pd">Token del atributo (ej. Token(ATTR_ESTADO, "estado", ...))</td></tr>
+        <tr><td class="pn">p[4]</td><td class="pd">Token(OP_ASIG)</td></tr>
+        <tr><td class="pn">p[5]</td><td class="pd">Token del valor (ej. Token(ON, "ON", ...))</td></tr>
+      </tbody></table>
     </div>
   </div>
 
-  <div class="fc pr" id="par-emit">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_emit(linea)</span>
-      <span class="fb2">Agregar una línea al HTML que se está construyendo</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="p-condicion">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_condicion_and / p_condicion_or / p_condicion_simple</span><span class="fb2">Encadena expresiones con AND/OR — acumula texto y lista de sensores</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">El método más simple de todos: hace <code>self._out.append(linea)</code>. Es la única puerta de salida para producir HTML. Al terminar todo el análisis, <code>parsear()</code> une esa lista con <code>"\n".join(self._out)</code> y devuelve el texto completo.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">linea</td><td class="pty">str</td><td class="pd">Cualquier texto que se quiere agregar al HTML. Puede ser una etiqueta de apertura, una de cierre, un atributo, o cualquier línea del documento.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv">nada — solo agrega el texto a la lista interna <code>self._out</code></div></div>
+      <p class="fd">Cada regla de condición devuelve una tupla <code>(texto, sensores)</code>. El texto es el string legible para el <code>&lt;h2&gt;</code>/<code>&lt;h3&gt;</code>. La lista de sensores contiene tripletas <code>(tok_sensor, tok_op, tok_valor)</code> que se usan para emitir los bloques verdes. No se emite HTML aquí porque el <code>&lt;div&gt;</code> contenedor todavía no fue abierto.</p>
+      <div class="fs">p_condicion_and(p):
+    t1, s1 = p[1]   ← condicion acumulada
+    t3, s3 = p[3]   ← nueva expr_cond
+    p[0] = (f"{t1} AND {t3}", s1 + s3)  ← concatenar texto y sensores</div>
     </div>
   </div>
 
-  <div class="fc pr" id="par-html-sensor">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_html_sensor(nombre, op, valor, ind)</span>
-      <span class="fb2">Dibuja el bloque verde de un sensor en el HTML</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr key" id="p-expr">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kk">★ clave</span><span class="fn">p_expr_sensor / p_expr_actuador / p_expr_bool / p_expr_not</span><span class="fb2">Expresión simple — con validación semántica de tipos</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Genera y emite las tres líneas HTML que forman el bloque de un sensor: un <code>&lt;div&gt;</code> con borde verde, un <code>&lt;h2&gt;</code> con el nombre legible del sensor, el operador y el valor, y el cierre.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nombre</td><td class="pty">str</td><td class="pd">Nombre técnico del sensor tal como lo emitió el lexer, ej. <code>"sensor_temp"</code>. Se traduce a texto legible con <code>_LABEL_SENSOR</code>.</td></tr>
-          <tr><td class="pn">op</td><td class="pty">str (TT.*)</td><td class="pd">El tipo del operador de comparación, ej. <code>TT.OP_GT</code>. Se traduce al símbolo legible con <code>_OP_TEXTO</code>.</td></tr>
-          <tr><td class="pn">valor</td><td class="pty">str</td><td class="pd">El valor crudo del token del lado derecho de la comparación, ej. <code>"26°C"</code>, <code>"250lux"</code>.</td></tr>
-          <tr><td class="pn">ind</td><td class="pty">str</td><td class="pd">Cadena de espacios para la indentación del HTML generado, ej. <code>"    "</code> (4 espacios).</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv">nada — llama a <code>_emit()</code> directamente para escribir en el HTML</div></div>
-      <div class="fs">_html_sensor("sensor_temp", TT.OP_GT, "26°C", "    ")
-
-emite:
-    &lt;div style="border:1px solid green; padding:20px; margin:10px 0;"&gt;
-      &lt;h2&gt;Temperatura  > 26°C&lt;/h2&gt;
-    &lt;/div&gt;</div>
+      <p class="fd"><code>p_expr_sensor</code> llama a <code>chk_sensor()</code> para verificar que el tipo del valor sea compatible con ese sensor. <code>p_expr_actuador</code> llama a <code>chk_attr(es_lectura=True)</code> para validar el atributo y tipo del valor, pero sin bloquear los atributos de solo lectura (que sí se pueden leer en condiciones).</p>
+      <table class="pt"><thead><tr><th>Regla</th><th>Forma en el fuente</th><th>Validación</th></tr></thead><tbody>
+        <tr><td class="pn">p_expr_sensor</td><td class="pd">sensor_luz &lt; 250lux</td><td class="pd">chk_sensor(): ILUMINANCIA ∈ {ILUMINANCIA} ✓</td></tr>
+        <tr><td class="pn">p_expr_sensor</td><td class="pd">sensor_movimiento == 10°C</td><td class="pd">chk_sensor(): TEMPERATURA ∉ {TRUE, FALSE} → ERROR semántico</td></tr>
+        <tr><td class="pn">p_expr_actuador</td><td class="pd">aire_ac.temp_act > 25°C</td><td class="pd">chk_attr(es_lectura=True): solo lectura pero es lectura → OK</td></tr>
+        <tr><td class="pn">p_expr_actuador</td><td class="pd">alarma.estado == 100%</td><td class="pd">chk_attr(): PORCENTAJE ∉ {ON, OFF} → ERROR semántico</td></tr>
+      </tbody></table>
     </div>
   </div>
 
-  <div class="fc pr" id="par-html-actuador">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_html_actuador(nombre, items, ind)</span>
-      <span class="fb2">Dibuja el bloque gris completo de un actuador con todos sus atributos</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="p-grupos">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_sensor / p_actuador / p_attr / p_op_cmp</span><span class="fb2">Grupos de terminales — devuelven el Token directamente</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Genera el bloque gris del actuador: un <code>&lt;div&gt;</code> con borde gris, el nombre en <code>&lt;h1&gt;</code>, y los atributos como lista <code>&lt;ul&gt;&lt;li&gt;</code>. Recibe la lista de <code>&lt;li&gt;</code> ya armados y los vuelca todos juntos.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nombre</td><td class="pty">str</td><td class="pd">Nombre completo del actuador, ej. <code>"foco_sala"</code>. Se pone como título <code>&lt;h1&gt;</code> del bloque.</td></tr>
-          <tr><td class="pn">items</td><td class="pty">List[str]</td><td class="pd">Lista de strings <code>&lt;li&gt;</code> ya construidos por <code>_html_item()</code>. Cada string corresponde a un atributo asignado.</td></tr>
-          <tr><td class="pn">ind</td><td class="pty">str</td><td class="pd">Cadena de espacios para la indentación.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv">nada — llama a <code>_emit()</code> para escribir el bloque completo en el HTML</div></div>
-      <div class="fs">_html_actuador("foco_sala", ["&lt;li&gt;Estado: ON&lt;/li&gt;", "&lt;li&gt;Brillo: 80%&lt;/li&gt;"], "  ")
-
-emite:
-  &lt;div style="border:1px solid gray; padding:20px; margin:10px 0;"&gt;
-    &lt;h1&gt;foco_sala&lt;/h1&gt;
-    &lt;ul&gt;
-      &lt;li&gt;Estado: ON&lt;/li&gt;
-      &lt;li&gt;Brillo: 80%&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/div&gt;</div>
+      <p class="fd">Reglas que agrupan terminales similares en un símbolo no terminal. <code>p_sensor</code> acepta los 5 tipos de sensor; <code>p_actuador</code> acepta los 7 de actuador. Devuelven <code>p[0] = p[1]</code> para que las reglas que los usen reciban el <code>Token</code> directamente.</p>
+      <div class="fs">def p_sensor(p):
+    """sensor : SENSOR_TEMP
+              | SENSOR_HUMEDAD
+              | SENSOR_LUZ
+              | SENSOR_MOVIMIENTO
+              | SENSOR_HUMO"""
+    p[0] = p[1]   ← ya es el Token de lexer_v4 (tipo: SENSOR_TEMP, valor: "sensor_luz"...)</div>
     </div>
   </div>
 
-  <div class="fc pr" id="par-html-item">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_html_item(attr_nombre, valor_tipo, valor_raw)</span>
-      <span class="fb2">Construye el texto de un &lt;li&gt; — no lo emite todavía</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="p-valores">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_valor_asig / p_valor_literal</span><span class="fb2">Valores del lado derecho de = o de una comparación</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Arma y devuelve el string de un elemento de lista <code>&lt;li&gt;</code>, sin escribirlo aún en el HTML. El llamador (<code>_asignacion()</code>) guarda ese string en la memoria temporal del actuador para emitirlo todo junto después.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">attr_nombre</td><td class="pty">str</td><td class="pd">Nombre del atributo, ej. <code>"brillo"</code>, <code>"email_notif"</code>. Se capitaliza y se reemplazan los guiones bajos por espacios para el label visible.</td></tr>
-          <tr><td class="pn">valor_tipo</td><td class="pty">str (TT.*)</td><td class="pd">El tipo del token del valor. Si es <code>TT.EMAIL</code>, genera un link <code>mailto:</code>. Si es <code>TT.CADENA</code>, elimina las comillas. Cualquier otro tipo se usa tal cual.</td></tr>
-          <tr><td class="pn">valor_raw</td><td class="pty">str</td><td class="pd">El valor crudo del token, ej. <code>"80%"</code>, <code>'"hola"'</code>, <code>"user@dom.com"</code>.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>str</code> — el string HTML del <code>&lt;li&gt;</code>, listo para guardar en la memoria temporal. No llama a <code>_emit()</code>.</div></div>
-      <div class="fs">_html_item("email_notif", TT.EMAIL,  "user@dom.com")
-→ '&lt;li&gt;Email notif: &lt;a href="mailto:user@dom.com"&gt;Contactar a user&lt;/a&gt;&lt;/li&gt;'
-
-_html_item("mensaje",    TT.CADENA, '"hola mundo"')
-→ '&lt;li&gt;Mensaje: hola mundo&lt;/li&gt;'
-
-_html_item("brillo",     TT.PORCENTAJE, "80%")
-→ '&lt;li&gt;Brillo: 80%&lt;/li&gt;'</div>
+      <p class="fd"><strong>p_valor_asig</strong>: acepta todos los literales más CADENA y EMAIL. Usado en asignaciones.</p>
+      <p class="fd"><strong>p_valor_literal</strong>: acepta todos los literales excepto CADENA y EMAIL. Usado en condiciones, donde comparar contra texto o email no tiene sentido.</p>
+      <div class="nb"><strong>Formato PLY importante:</strong> cada alternativa debe estar en su propia línea del docstring. No se pueden poner varias en una sola línea separadas por <code>|</code>.</div>
     </div>
   </div>
 
-  <div class="fc pr key" id="par-volcar">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kk">★ clave</span>
-      <span class="fn">_volcar_actuadores(acumulador, ind)</span>
-      <span class="fb2">Convierte la memoria temporal en bloques HTML reales</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="p-error">
+    <div class="fh2" onclick="toggle(this)"><span class="fk km">regla</span><span class="fn">p_error(p)</span><span class="fb2">Manejador de errores sintácticos — usa p.value explícitamente</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Recorre el diccionario acumulador y llama a <code>_html_actuador()</code> por cada entrada. Al terminar, vacía el diccionario con <code>.clear()</code>. Es el momento exacto en que las asignaciones anotadas en memoria se convierten en HTML visible.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">acumulador</td><td class="pty">OrderedDict[str, List[str]]</td><td class="pd">La memoria temporal que maneja <code>_cuerpo()</code>. Las claves son los nombres de actuadores; los valores son listas de strings <code>&lt;li&gt;</code>.</td></tr>
-          <tr><td class="pn">ind</td><td class="pty">str</td><td class="pd">Cadena de espacios para la indentación de los bloques HTML generados.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv">nada — emite los bloques grises y deja el acumulador vacío</div></div>
-      <div class="kb"><strong>Se llama en dos momentos precisos dentro de <code>_cuerpo()</code>:</strong><br>
-1. Justo antes de entrar a un <code>IF</code> anidado, para que los actuadores aparezcan visualmente antes de la subsección IF.<br>
-2. Al salir del bucle al llegar a <code>END</code> o <code>ELSE</code>, para vaciar lo que haya quedado pendiente.</div>
-    </div>
-  </div>
-
-  <div class="fc pr" id="par-parsear">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">parsear()</span>
-      <span class="fb2">El punto de entrada — dispara todo el análisis</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Es el único método público de la clase. Escribe el inicio del HTML, recorre todas las instrucciones una por una (atrapando errores para poder seguir), y al final escribe el cierre y devuelve el documento completo.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">ninguno</td><td class="pty">—</td><td class="pd">No recibe parámetros externos. Usa <code>self._tokens</code> y <code>self._titulo</code> que se guardaron en <code>__init__</code>.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>str</code> — el documento HTML completo, listo para guardar en un archivo. Es el resultado final de todo el proceso.</div></div>
-    </div>
-  </div>
-
-  <div class="fc pr" id="par-cabecera">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_emitir_cabecera()  /  _emitir_cierre()</span>
-      <span class="fb2">El marco del documento HTML: apertura y cierre</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Ambos métodos no reciben parámetros y no devuelven nada: simplemente llaman a <code>_emit()</code> con las líneas correspondientes.</p>
-      <p class="fd"><strong>_emitir_cabecera()</strong>: escribe el <code>&lt;!DOCTYPE html&gt;</code>, los metadatos, el título (usa <code>self._titulo</code>), el bloque <code>&lt;style&gt;</code> con los estilos CSS, y el <code>&lt;h1&gt;</code> del dashboard. Se llama una sola vez al inicio de <code>parsear()</code>.</p>
-      <p class="fd"><strong>_emitir_cierre()</strong>: escribe <code>&lt;/body&gt;&lt;/html&gt;</code>. Se llama una sola vez al final.</p>
-    </div>
-  </div>
-
-  <div class="fc pr" id="par-instruccion">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_instruccion(nivel)</span>
-      <span class="fb2">Decide qué tipo de instrucción viene y llama al método correspondiente</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Mira el token actual con <code>_es()</code> y despacha al método correcto. Si no reconoce ningún caso esperado, lanza <code>ErrorSintactico</code>.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nivel</td><td class="pty">int</td><td class="pd">Nivel de anidamiento actual. Siempre es <code>0</code> cuando lo llama <code>parsear()</code>, ya que las instrucciones de nivel raíz nunca están dentro de otro bloque.</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">WHEN      → _bloque_when(nivel)
-EVERY     → _bloque_every(nivel)
-IF        → _condicional(nivel)
-ACTUADOR  → asignación suelta: crear acum propio, llamar _asignacion(acum) y luego _volcar
-otro      → ErrorSintactico("Se esperaba WHEN, EVERY, IF o ACTUADOR")</div>
-    </div>
-  </div>
-
-  <div class="fc pr" id="par-when">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_bloque_when(nivel)</span>
-      <span class="fb2">Analiza y dibuja un bloque "WHEN ... DO ... END"</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Implementa la regla <code>WHEN condicion DO cuerpo END</code>. Parsea la condición primero (sin dibujar nada) para obtener su texto y la lista de sensores, y solo después abre el <code>&lt;div&gt;</code> y lo usa para el título y los bloques verdes.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nivel</td><td class="pty">int</td><td class="pd">Nivel de anidamiento. Determina la indentación del HTML: se calcula como <code>"  " * (nivel + 1)</code>. A nivel raíz es 0, por lo que la indentación del bloque es <code>"  "</code>.</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">1. consumir WHEN
-2. (texto, sensores) = _condicion()   ← NO emite nada todavía
-3. consumir DO
-4. _emit(&lt;div&gt; + &lt;h2&gt;Cuando: {texto}&lt;/h2&gt;)
-5. para cada sensor: _html_sensor(...)
-6. _cuerpo(nivel + 1)
-7. consumir END
-8. _emit(&lt;/div&gt;)</div>
-    </div>
-  </div>
-
-  <div class="fc pr" id="par-every">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_bloque_every(nivel)</span>
-      <span class="fb2">Analiza y dibuja un bloque "EVERY ... DO ... END"</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Igual que <code>_bloque_when()</code> pero más simple: el disparador es directamente un token de tipo <code>TIEMPO</code> (como <code>30m</code>), sin necesidad de analizar una condición.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nivel</td><td class="pty">int</td><td class="pd">Nivel de anidamiento. Mismo uso que en <code>_bloque_when()</code>.</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">1. consumir EVERY
-2. tok_tiempo = consumir(TIEMPO)   ← ej. "30m", "1h", "10s"
-3. consumir DO
-4. _emit(&lt;div&gt; + &lt;h2&gt;Cada: {tok_tiempo.valor}&lt;/h2&gt;)
-5. _cuerpo(nivel + 1)
-6. consumir END
-7. _emit(&lt;/div&gt;)</div>
-    </div>
-  </div>
-
-  <div class="fc pr key" id="par-cuerpo">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kk">★ clave</span>
-      <span class="fn">_cuerpo(nivel)</span>
-      <span class="fb2">Analiza las acciones dentro de un bloque, agrupando los actuadores en memoria</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">El método central de la técnica de una sola pasada. Crea un diccionario local vacío (<code>acum</code>) al inicio, va anotando los atributos de cada actuador en él sin dibujar nada, y al llegar al final del bloque dibuja todos los bloques grises de golpe.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nivel</td><td class="pty">int</td><td class="pd">Nivel de anidamiento actual. Se pasa a los métodos que llama internamente (<code>_condicional</code>, etc.) y se usa para calcular la indentación del HTML.</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">acum = {}   ← memoria temporal, vive solo durante este método
-
-mientras NO sea (END | ELSE | fin de archivo):
-    si ve IF:
-        _volcar_actuadores(acum, ind)   ← dibujar los pendientes antes del IF
-        _condicional(nivel)
-    si ve ACTUADOR:
-        _asignacion(acum)               ← anotar en memoria, NO dibujar
-    si ve otra cosa:
-        ErrorSintactico + _sincronizar
-
-_volcar_actuadores(acum, ind)           ← dibujar lo que quedó pendiente</div>
-      <div class="nb"><strong>Ejemplo:</strong> si hay tres líneas seguidas de <code>foco_sala</code> (estado, brillo, color), las tres van a <code>acum["foco_sala"]</code>. Al llegar al END, <code>_volcar_actuadores()</code> genera un único bloque gris con las tres en lista, en vez de tres bloques separados.</div>
-    </div>
-  </div>
-
-  <div class="fc pr" id="par-condicional">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_condicional(nivel)</span>
-      <span class="fb2">Analiza y dibuja un bloque "IF ... THEN ... [ELSE ...] END"</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Implementa el bloque condicional con ELSE opcional. El parámetro <code>nivel</code> controla el tamaño del título: <code>&lt;h2&gt;</code> si está en el nivel raíz, <code>&lt;h3&gt;</code> si está anidado dentro de otro bloque.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">nivel</td><td class="pty">int</td><td class="pd">Nivel de anidamiento. Si <code>nivel > 0</code> el título usa <code>&lt;h3&gt;</code>; si es <code>0</code> usa <code>&lt;h2&gt;</code>. Esto hace que los IF anidados dentro de WHEN se vean visualmente más pequeños.</td></tr>
-        </tbody>
-      </table>
-      <div class="fs">1. consumir IF
-2. (texto, sensores) = _condicion()
-3. consumir THEN
-4. tag = "h3" si nivel > 0, sino "h2"
-5. _emit(&lt;div&gt; + &lt;{tag}&gt;Si: {texto}&lt;/{tag}&gt;)
-6. dibujar sensores
-7. _cuerpo(nivel + 1)
-8. si hay ELSE:
-       _emit(&lt;/div&gt;)
-       _emit(&lt;div&gt; + &lt;{tag}&gt;En caso contrario&lt;/{tag}&gt;)
-       _cuerpo(nivel + 1)
-9. consumir END
-10. _emit(&lt;/div&gt;)</div>
-    </div>
-  </div>
-
-  <div class="fc pr" id="par-condicion">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_condicion()</span>
-      <span class="fb2">Lee una condición completa, incluyendo los AND/OR que pueda tener</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Lee una o más expresiones simples unidas con AND u OR. No dibuja HTML: solo recolecta el texto de la condición y la lista de sensores mencionados, para que el método que lo llamó los use cuando corresponda.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">ninguno</td><td class="pty">—</td><td class="pd">No recibe parámetros.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>tuple(str, list)</code> — el texto legible de la condición completa (ej. <code>"sensor_temp > 26°C AND alarma.estado == OFF"</code>), y la lista de tuplas <code>(nombre_sensor, tipo_op, valor)</code> de cada sensor mencionado.</div></div>
-    </div>
-  </div>
-
-  <div class="fc pr key" id="par-exprcond">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kk">★ clave</span>
-      <span class="fn">_expr_cond()</span>
-      <span class="fb2">Lee una comparación simple — y ahora valida que tenga sentido semánticamente</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Lee la parte más básica de una condición: una sola comparación. Puede venir en cuatro formas, y en dos de ellas (sensor y actuador) se aplican las validaciones semánticas que se agregaron en la última versión.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">ninguno</td><td class="pty">—</td><td class="pd">No recibe parámetros.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>tuple(str, list)</code> — igual que <code>_condicion()</code>: el texto legible y la lista de sensores. Si es un booleano puro, la lista es vacía. Si es un actuador en condición, tampoco genera bloque verde.</div></div>
-      <div class="fs">CASO 1 — NOT algo:
-    NOT sensor_humo == TRUE
-
-CASO 2 — booleano puro:
-    TRUE / FALSE / ON / OFF  → no valida tipo, devuelve el valor tal cual
-
-CASO 3 — SENSOR op valor:   ★ valida el tipo con TIPOS_VALOR_SENSOR
-    sensor_movimiento == TRUE    → OK (TRUE está en {TRUE, FALSE})
-    sensor_movimiento == 10°C    → ERROR: se esperaba TRUE o FALSE
-
-CASO 4 — ACTUADOR.attr op valor:   ★ valida con _validar_tipo_atributo(es_lectura=True)
-    alarma.estado == OFF         → OK (OFF está en {ON, OFF})
-    alarma.estado == 100%        → ERROR: estado solo acepta ON/OFF</div>
-    </div>
-  </div>
-
-  <div class="fc pr key" id="par-asignacion">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kk">★ clave</span>
-      <span class="fn">_asignacion(acum)</span>
-      <span class="fb2">Lee "actuador.atributo = valor", valida, y guarda en memoria sin dibujar</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Implementa la regla <code>ACTUADOR PUNTO ATTR OP_ASIG valor</code>. Consume los cinco tokens, valida la combinación atributo-valor y construye el <code>&lt;li&gt;</code>, pero lo guarda en <code>acum</code> en vez de emitirlo.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">acum</td><td class="pty">OrderedDict[str, List[str]]</td><td class="pd">La memoria temporal de <code>_cuerpo()</code>. Las claves son los nombres de actuadores y los valores son listas de strings <code>&lt;li&gt;</code>. Este método agrega a esa lista — si el actuador no existía todavía en el dict, lo crea primero.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv">nada — el resultado se guarda en <code>acum</code>, no se emite HTML</div></div>
-      <div class="fs">foco_sala.estado = ON    → acum["foco_sala"] = ["&lt;li&gt;Estado: ON&lt;/li&gt;"]
-foco_sala.brillo = 80%   → acum["foco_sala"] += ["&lt;li&gt;Brillo: 80%&lt;/li&gt;"]
-aire_ac.modo     = FRIO  → acum["aire_ac"]   = ["&lt;li&gt;Modo: FRIO&lt;/li&gt;"]</div>
-    </div>
-  </div>
-
-  <div class="fc pr" id="par-valores">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk km">método</span>
-      <span class="fn">_valor_asig()  /  _valor_literal()</span>
-      <span class="fb2">Leen el token del lado derecho de un "=" o de una comparación</span>
-      <span class="ft">›</span>
-    </div>
-    <div class="fb">
-      <p class="fd">Ambos métodos no reciben parámetros y devuelven el token que leyeron.</p>
-      <p class="fd"><strong>_valor_asig()</strong>: acepta <code>TIPOS_VALOR</code> + <code>CADENA</code> + <code>EMAIL</code>. Para el lado derecho de una asignación, donde el valor puede ser texto entre comillas o un email.</p>
-      <p class="fd"><strong>_valor_literal()</strong>: acepta solo <code>TIPOS_VALOR</code>. Para el lado derecho de una comparación en una condición, donde texto y email no tienen sentido como operandos.</p>
-      <div class="rb"><div class="rl">Devuelven</div><div class="rv"><code>Token</code> — el token del valor consumido, con su <code>.tipo</code> y <code>.valor</code> para uso posterior</div></div>
-      <div class="fs">_valor_asig():    acepta 26°C, 80%, "texto", user@dom.com, ON, OFF, TRUE, FRIO...
-_valor_literal(): acepta 26°C, 80%, ON, OFF, TRUE, FRIO...  (NO cadena ni email)</div>
+      <p class="fd">A diferencia de las demás reglas donde PLY extrae <code>.value</code> automáticamente, en <code>p_error</code> el parámetro <code>p</code> llega como el <code>_PLYToken</code> crudo. Por eso hay que usar <code>p.value</code> para llegar al <code>Token</code> de lexer_v4.</p>
+      <div class="goneb"><strong>Bug histórico resuelto:</strong> antes de esta corrección, <code>p_error</code> hacía <code>tok = p</code> y luego <code>tok.linea</code>, lo que generaba <code>AttributeError: '_PLYToken' object has no attribute 'linea'</code> en cualquier error sintáctico.</div>
+      <div class="fs">def p_error(p):
+    if p is None:
+        # EOF inesperado — el archivo terminó antes de cerrar un bloque
+        _st.errores_sint.append("Error sintactico | Fin de archivo inesperado")
+    else:
+        tok = p.value   # ← p es _PLYToken, .value es el Token de lexer_v4
+        _st.errores_sint.append(
+            f"Error sintactico | Linea {tok.linea:3d}, Col {tok.col:3d} | ..."
+        )</div>
     </div>
   </div>
 </section>
 
 <section class="section" id="compilar">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>función compilar()</h2></div>
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>compilar()</h2></div>
   <div class="fc pr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kf">func</span>
-      <span class="fn">compilar(fuente, nombre_archivo)</span>
-      <span class="fb2">Junta el Lexer y el Parser en un solo paso</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk kf">func</span><span class="fn">compilar(fuente, nombre_archivo)</span><span class="fb2">Orquesta las dos fases: lexer manual + parser PLY</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Función de alto nivel que conecta el Lexer con el Parser. Primero tokeniza, después parsea y traduce, y devuelve todos los resultados juntos.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">fuente</td><td class="pty">str</td><td class="pd">El contenido completo del archivo <code>.smart</code> como texto plano.</td></tr>
-          <tr><td class="pn">nombre_archivo</td><td class="pty">str</td><td class="pd">El nombre base del archivo (sin extensión). Se usa como título del HTML y en el encabezado del dashboard.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>tuple(str, list, list, list)</code> — el HTML generado, los errores léxicos, las advertencias de rango, y los errores sintácticos/semánticos. Se devuelven todos juntos para que el llamador decida cómo mostrarlos.</div></div>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">fuente</td><td class="pty">str</td><td class="pd">Texto completo del archivo .smart</td></tr>
+        <tr><td class="pn">nombre_archivo</td><td class="pty">str</td><td class="pd">Nombre base para el &lt;title&gt; y &lt;h1&gt; del HTML</td></tr>
+      </tbody></table>
+      <div class="rb"><div class="rl">Devuelve</div><div class="rv">(html, errores_lex, advertencias_lex, errores_sint, errores_sem) — cinco valores</div></div>
     </div>
   </div>
 </section>
 
 <section class="section" id="modo-archivo">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>función modo_archivo()</h2></div>
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>modo_archivo()</h2></div>
   <div class="fc pr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kf">func</span>
-      <span class="fn">modo_archivo(ruta_entrada)</span>
-      <span class="fb2">Lee un archivo .smart del disco y, si todo está bien, escribe el .html</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk kf">func</span><span class="fn">modo_archivo(ruta)</span><span class="fb2">Lee, compila y escribe el HTML — solo si no hay ningún error</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Maneja toda la entrada y salida de archivos. Valida que el archivo exista y tenga la extensión correcta, lo compila, muestra los resultados en pantalla, y solo escribe el HTML si no hubo ningún error ni advertencia.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">ruta_entrada</td><td class="pty">str</td><td class="pd">Ruta al archivo <code>.smart</code> a procesar. Puede ser relativa o absoluta. Si no existe o tiene la extensión incorrecta, el programa termina con <code>sys.exit(1)</code>.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv">nada — sus efectos son mostrar resultados en consola y (si todo está bien) escribir el archivo <code>.html</code></div></div>
-      <div class="fs">Si hay errores léxicos, de rango o sintácticos:
-    → mostrar todos los errores en pantalla
-    → NO escribir ningún archivo .html
-    → sys.exit(2)
-
-Si no hay errores:
-    → escribir el .html con el mismo nombre pero extensión .html
-    → mostrar "OK Analisis exitoso"</div>
+      <table class="pt"><thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>
+        <tr><td class="pn">ruta</td><td class="pty">str</td><td class="pd">Ruta al archivo .smart. Valida existencia y extensión antes de procesar.</td></tr>
+      </tbody></table>
+      <div class="kb"><strong>Política de generación:</strong> el archivo .html solo se escribe si <code>errores_lex</code>, <code>errores_sint</code>, <code>errores_sem</code> y <code>advertencias_lex</code> están todos vacíos. Cualquier problema bloquea la salida.</div>
     </div>
   </div>
 </section>
 
 <section class="section" id="modo-interactivo">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>función modo_interactivo()</h2></div>
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>modo_interactivo()</h2></div>
   <div class="fc pr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kf">func</span>
-      <span class="fn">modo_interactivo()</span>
-      <span class="fb2">Permite escribir instrucciones en la consola y ver el resultado al instante</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk kf">func</span><span class="fn">modo_interactivo()</span><span class="fb2">Bucle de consola — línea en blanco para compilar</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Bucle que lee líneas del usuario hasta que ingresa una línea vacía, compila todo lo acumulado y muestra el resultado en consola. No escribe archivos al disco.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">ninguno</td><td class="pty">—</td><td class="pd">No recibe parámetros.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv">nada — sus efectos son mostrar resultados en consola</div></div>
-      <div class="fs">lineas = []
-bucle:
-    leer linea del teclado
-    si "salir"          → terminar
-    si linea vacía y hay lineas:
-        compilar todo lo acumulado
-        mostrar errores o el HTML en pantalla
-        vaciar lineas
-    si no:
-        agregar la linea a la lista</div>
+      <p class="fd">Acumula líneas hasta que el usuario ingresa una línea en blanco, compila todo lo acumulado y muestra el resultado. No escribe archivos al disco.</p>
     </div>
   </div>
 </section>
 
 <section class="section" id="gui">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>seleccionar_archivo_gui()</h2></div>
+  <div class="sh"><span class="sb2 bp">Parser PLY</span><h2>seleccionar_archivo_gui() / main()</h2></div>
   <div class="fc pr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kf">func</span>
-      <span class="fn">seleccionar_archivo_gui()</span>
-      <span class="fb2">Abre el explorador de archivos nativo del sistema operativo</span>
-      <span class="ft">›</span>
-    </div>
+    <div class="fh2" onclick="toggle(this)"><span class="fk kf">func</span><span class="fn">seleccionar_archivo_gui()</span><span class="fb2">Explorador de archivos con tkinter, filtrado a *.smart</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Usa la librería <code>tkinter</code> para mostrar el explorador de archivos del sistema, filtrado a archivos <code>.smart</code>. Si <code>tkinter</code> no está instalado, devuelve <code>None</code> sin explotar.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">ninguno</td><td class="pty">—</td><td class="pd">No recibe parámetros.</td></tr>
-        </tbody>
-      </table>
-      <div class="rb"><div class="rl">Devuelve</div><div class="rv"><code>str | None</code> — la ruta completa al archivo elegido, o <code>None</code> si el usuario canceló el diálogo o si tkinter no está disponible.</div></div>
+      <div class="rb"><div class="rl">Devuelve</div><div class="rv">str | None — ruta elegida, o None si se canceló o tkinter no está disponible</div></div>
     </div>
   </div>
-</section>
-
-<section class="section" id="main">
-  <div class="sh"><span class="sb2 bp">Parser</span><h2>función main()</h2></div>
-  <div class="fc pr">
-    <div class="fh2" onclick="toggle(this)">
-      <span class="fk kf">func</span>
-      <span class="fn">main()</span>
-      <span class="fb2">El punto de partida — decide cómo ejecutar el programa</span>
-      <span class="ft">›</span>
-    </div>
+  <div class="fc pr" id="main">
+    <div class="fh2" onclick="toggle(this)"><span class="fk kf">func</span><span class="fn">main()</span><span class="fb2">Punto de entrada — elige el modo según sys.argv</span><span class="ft">›</span></div>
     <div class="fb">
-      <p class="fd">Lee <code>sys.argv</code> (los argumentos escritos en la terminal) y decide qué modo usar.</p>
-      <table class="pt">
-        <thead><tr><th>Parámetro</th><th>Tipo</th><th>Qué es</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">ninguno</td><td class="pty">—</td><td class="pd">No recibe parámetros directos — lee <code>sys.argv</code> internamente.</td></tr>
-        </tbody>
-      </table>
-      <table class="pt">
-        <thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
-        <tbody>
-          <tr><td class="pn">python parser_una_pasada.py</td><td class="pd">Abre <code>seleccionar_archivo_gui()</code>. Si se cancela, entra al modo interactivo.</td></tr>
-          <tr><td class="pn">python parser_una_pasada.py archivo.smart</td><td class="pd">Llama directo a <code>modo_archivo(sys.argv[1])</code>.</td></tr>
-          <tr><td class="pn">python parser_una_pasada.py --interactivo</td><td class="pd">Llama directo a <code>modo_interactivo()</code>.</td></tr>
-          <tr><td class="pn">dos o más argumentos</td><td class="pd">Muestra el mensaje de uso y termina con <code>sys.exit(1)</code>.</td></tr>
-        </tbody>
-      </table>
+      <table class="pt"><thead><tr><th>Comando</th><th>Comportamiento</th></tr></thead><tbody>
+        <tr><td class="pn">python parser_ply.py</td><td class="pd">Abre GUI. Si se cancela → modo interactivo.</td></tr>
+        <tr><td class="pn">python parser_ply.py archivo.smart</td><td class="pd">Procesa el archivo directamente.</td></tr>
+        <tr><td class="pn">python parser_ply.py --interactivo</td><td class="pd">Modo consola sin GUI.</td></tr>
+      </tbody></table>
     </div>
   </div>
 </section>
 
 </main>
-
 <script>
-  function toggle(h) { h.closest('.fc').classList.toggle('open'); }
-  const secs = document.querySelectorAll('.section');
-  const nis  = document.querySelectorAll('.ni');
-  secs.forEach(s => new IntersectionObserver(es => {
-    es.forEach(e => {
-      if (e.isIntersecting) {
-        nis.forEach(n => n.classList.remove('active'));
-        const l = document.querySelector(`.ni[href="#${e.target.id}"]`);
-        if (l) l.classList.add('active');
+  function toggle(h){h.closest('.fc').classList.toggle('open')}
+  document.querySelectorAll('.section').forEach(s=>
+    new IntersectionObserver(es=>es.forEach(e=>{
+      if(e.isIntersecting){
+        document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+        const l=document.querySelector(`.ni[href="#${e.target.id}"]`);
+        if(l)l.classList.add('active');
       }
-    });
-  }, { rootMargin: '-30% 0px -60% 0px' }).observe(s));
+    }),{rootMargin:'-30% 0px -60% 0px'}).observe(s));
 </script>
 </body>
 </html>
