@@ -1,21 +1,3 @@
-"""
-╔══════════════════════════════════════════════════════════════════╗
-║   SMART-HOME Parser PLY  —  Sintaxis y Semántica de Lenguajes   ║
-║   UTN Facultad Regional Resistencia  |  Ciclo 2026              ║
-╚══════════════════════════════════════════════════════════════════╝
-
-Análisis léxico  : lexer_v4.py (implementación manual, sin re)
-Análisis sintáctico: PLY LALR(1)
-
-Nota sobre el adaptador:
-  PLY llama a lexer.token() y espera un objeto con .type/.value/.lineno.
-  Nuestro adaptador (_PLYToken) envuelve cada Token de lexer_v4 así:
-      _PLYToken.type   = tok.tipo   (string, ej. "WHEN")
-      _PLYToken.value  = tok        (Token completo de lexer_v4)
-  Dentro de las reglas p_*, PLY ya extrae .value automáticamente,
-  por lo tanto p[i] == Token de lexer_v4, con campos .tipo/.valor/.linea/.col
-"""
-
 import sys
 import os
 from collections import OrderedDict
@@ -30,10 +12,12 @@ from Lexer import (
 import ply.yacc as yacc
 
 
-# ======================================================================
 #  1. ESPECIFICACIONES SEMÁNTICAS
-# ======================================================================
 
+# Para analizar si la semántica está bien se recibe el actuador con su atributo 
+# y se verifica que reciba los tokens correctos, tambien se verifica que solo sea de lectura o escritura
+# y por último se tiene un string el cual es la descripción para los mensajes de error
+# Forma: (ACTUADOR,ATRIBUTO): (VALOR,FALSE=ESCRITURA | TRUE=LECTURA,DESCRIPCION)
 ESPECIFICACION_ATRIBUTOS: dict = {
     (TT.ACT_FOCO,      TT.ATTR_ESTADO):      ({TT.ON, TT.OFF},               False, "BOOL (ON/OFF)"),
     (TT.ACT_FOCO,      TT.ATTR_BRILLO):      ({TT.PORCENTAJE},               False, "PERCENT (0%-100%)"),
@@ -54,6 +38,7 @@ ESPECIFICACION_ATRIBUTOS: dict = {
     (TT.ACT_ALARMA,    TT.ATTR_ACTIVADA):    ({TT.ON, TT.OFF},               False, "BOOL (ON/OFF)"),
 }
 
+# Forma: SENSOR: VALOR
 TIPOS_VALOR_SENSOR: dict = {
     TT.SENSOR_TEMP:       {TT.TEMPERATURA},
     TT.SENSOR_HUMEDAD:    {TT.PORCENTAJE},
@@ -62,6 +47,7 @@ TIPOS_VALOR_SENSOR: dict = {
     TT.SENSOR_HUMO:       {TT.TRUE, TT.FALSE},
 }
 
+# Descripciones para mensajes de error
 _NOMBRE_TIPO_SENSOR: dict = {
     TT.SENSOR_TEMP:       "TEMPERATURA (ej. 26°C)",
     TT.SENSOR_HUMEDAD:    "PORCENTAJE (ej. 80%)",
@@ -71,9 +57,7 @@ _NOMBRE_TIPO_SENSOR: dict = {
 }
 
 
-# ======================================================================
 #  2. ESTILOS HTML
-# ======================================================================
 
 CSS_SENSOR   = "border:1px solid green; padding:20px; margin:10px 0;"
 CSS_ACTUADOR = "border:1px solid gray;  padding:20px; margin:10px 0;"
@@ -101,9 +85,7 @@ _UNIDAD_SENSOR = {
 }
 
 
-# ======================================================================
-#  3. ESTADO GLOBAL (compartido entre reglas PLY)
-# ======================================================================
+#  3. ESTADO GLOBAL 
 
 class _Estado:
     def reset(self, titulo: str = ""):
@@ -210,34 +192,18 @@ _st = _Estado()
 _st.reset()
 
 
-# ======================================================================
-#  4. ADAPTADOR LEXER → PLY
-# ======================================================================
+#  4. Adaptador del lexer manual a PLY
 
 class _PLYToken:
     """
-    Objeto mínimo compatible con el protocolo de token de PLY.
-
-    NOTA IMPORTANTE: no se usa __slots__ aquí porque PLY, al manejar
-    un error sintáctico, intenta asignar dinámicamente el atributo
-    `.lexer` sobre el token que causó el error (ply/yacc.py, método
-    parseopt_notrack, línea "errtoken.lexer = lexer"). Si la clase
-    tiene __slots__ sin incluir 'lexer', esa asignación lanza:
-        AttributeError: '_PLYToken' object has no attribute 'lexer'
-        and no __dict__ for setting new attributes
-    Por eso se usa una clase normal (con __dict__), que permite a PLY
-    agregar atributos extra sin que la aplicación se caiga.
+    Esta clase se utiliza para adaptar el formato de tokens que recibe PLY,
+    esto se puede ya que podemos asignarle atributos de manera dinámica a esta clase
     """
     pass
 
 
 class LexerAdaptador:
-    """
-    Convierte List[Token] al protocolo de PLY.
-    PLY llama a .token() y obtiene _PLYToken donde:
-        .type  = tok.tipo   (string que PLY usa para las reglas)
-        .value = tok        (Token completo; PLY lo pasa como p[i] en reglas)
-    """
+
     def __init__(self, tokens: List[Token]):
         self._toks = [t for t in tokens if t.tipo not in (TT.EOF, TT.COMENTARIO, TT.DESCONOCIDO, TT.ERROR_LEX)]
         self._pos = 0
@@ -247,6 +213,8 @@ class LexerAdaptador:
             return None
         tok = self._toks[self._pos]
         self._pos += 1
+
+        # Aca asignamos los atributos de la clase
         p = _PLYToken()
         p.type = tok.tipo
         p.value = tok          # p[i] en reglas PLY == tok
@@ -255,9 +223,7 @@ class LexerAdaptador:
         return p
 
 
-# ======================================================================
 #  5. TOKENS PARA PLY
-# ======================================================================
 
 tokens = (
     'WHEN','IF','THEN','ELSE','DO','END','EVERY',
@@ -286,10 +252,7 @@ precedence = (
 )
 
 
-# ======================================================================
 #  6. GRAMÁTICA PLY
-#     Nota: p[i] ya es el Token de lexer_v4 (con .tipo/.valor/.linea/.col)
-# ======================================================================
 
 # ── programa ──────────────────────────────────────────────────────────
 
@@ -312,6 +275,12 @@ def p_instruccion(p):
                    | asignacion_suelta"""
     pass
 
+
+# La forma en la que funciona la traduccion es la siguiente:
+# se emite y acumula un rectangulo verde para cada sensor,
+# una vez que se analizan las acciones estas se acumulan hasta llegar a un IF anidado o un END
+# al momento de llegar a cualquiera de estas dos, se emite un rectangulo gris por cada actuador
+# y se vuelca en cada rectangulo las acciones realizadas para los respectivos actuadores 
 
 # ── bloque WHEN ───────────────────────────────────────────────────────
 # Se divide en _open + cuerpo + END para poder emitir la cabecera HTML
@@ -644,16 +613,12 @@ def p_error(p):
         )
 
 
-# ======================================================================
 #  7. CONSTRUIR PARSER PLY
-# ======================================================================
 
 _parser = yacc.yacc(debug=False, write_tables=False)
 
 
-# ======================================================================
 #  8. CABECERA Y CIERRE HTML
-# ======================================================================
 
 def _cabecera(titulo: str):
     _st.emit("<!DOCTYPE html>")
@@ -678,9 +643,7 @@ def _cierre():
     _st.emit("</html>")
 
 
-# ======================================================================
 #  9. FUNCIÓN PRINCIPAL DE COMPILACIÓN
-# ======================================================================
 
 def compilar(fuente: str, nombre_archivo: str):
     """
@@ -713,9 +676,7 @@ def compilar(fuente: str, nombre_archivo: str):
     )
 
 
-# ======================================================================
 #  10. MODO ARCHIVO
-# ======================================================================
 
 def modo_archivo(ruta: str) -> None:
     if not os.path.exists(ruta):
@@ -764,9 +725,7 @@ def modo_archivo(ruta: str) -> None:
     print(f"  OK  HTML generado en: {ruta_html}")
 
 
-# ======================================================================
 #  11. MODO INTERACTIVO
-# ======================================================================
 
 def modo_interactivo():
     print("=" * 67)
@@ -796,9 +755,7 @@ def modo_interactivo():
             lineas.append(linea); num += 1
 
 
-# ======================================================================
 #  12. PUNTO DE ENTRADA
-# ======================================================================
 
 def seleccionar_archivo_gui() -> Optional[str]:
     try:
@@ -828,20 +785,10 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    # ==================================================================
-    #  13. EJECUCION COMO .EXE (doble clic)
-    # ==================================================================
-    # Cuando este script se empaqueta con PyInstaller y el usuario lo
-    # ejecuta con doble clic, la consola se abre y se cierra sola apenas
-    # termina, sin dar tiempo a leer los errores. Con sys.exit() ademas
-    # se dispararia un traceback feo en una consola que ya se cerro.
-    # Por eso envolvemos main() en un try/except y agregamos un input()
-    # al final para que la ventana quede abierta hasta que el usuario
-    # presione ENTER.
     try:
         main()
     except SystemExit:
-        pass  # sys.exit(1) / sys.exit(2) ya imprimieron su mensaje
+        pass 
     except Exception as e:
         print(f"\n  ERROR INESPERADO: {e}")
     finally:

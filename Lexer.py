@@ -250,14 +250,6 @@ def _es_email_char(c): return _es_letra(c) or _es_digito(c) or c in ('_','.', '+
 def _es_blanco(c):   return c in (' ', '\t', '\r', '\n')
 
 def _distancia_edicion(a: str, b: str) -> int:
-    """
-    Distancia de Levenshtein clásica (programación dinámica),
-    implementada manualmente sin librerías externas.
-    Cuenta el mínimo número de inserciones, eliminaciones o
-    sustituciones de un carácter para convertir `a` en `b`.
-    Se usa para detectar palabras reservadas mal escritas
-    (ej. "OFFF" está a distancia 1 de "OFF").
-    """
     n, m = len(a), len(b)
     if n == 0: return m
     if m == 0: return n
@@ -498,23 +490,11 @@ _EXTRACTOR = {
 
 # ======================================================================
 #  8. DETECCIÓN DE INVÁLIDOS ESPECÍFICOS
-#     Intentan reconocer el patrón erróneo y retornan un mensaje
-#     descriptivo, o None si no aplica.
+#     Intentan reconocer el patrón erróneo y retornan un mensaje descriptivo, o None si no aplica.
 # ======================================================================
 
 def _detectar_invalido(linea: str, pos: int) -> Optional[tuple]:
-    """
-    Intenta detectar patrones de literales mal formados para emitir
-    un error léxico específico en vez del genérico "carácter no reconocido".
-    Retorna (mensaje_error, nuevo_pos) o None.
 
-    Patrones detectados:
-      número + sufijo_incorrecto   → ej. 500luxx, 80porciento, 25grados
-      número + °  sin C            → ej. 25°F, 25°
-      número + / patrón de fecha   → ej. 32/13/2026 (día/mes inválido)
-      HH:MM con valores inválidos  → ej. 25:00, 12:99
-      email mal formado            → ej. user@..dom, user@dom.
-    """
     c = linea[pos]
 
     # ── Número seguido de sufijo incorrecto ──────────────────────
@@ -637,9 +617,7 @@ def _detectar_invalido(linea: str, pos: int) -> Optional[tuple]:
     return None
 
 
-# ======================================================================
 #  9. CLASE PRINCIPAL  SmartHomeLexer
-# ======================================================================
 
 class SmartHomeLexer:
 
@@ -647,11 +625,11 @@ class SmartHomeLexer:
         self.errores:      list = []
         self.advertencias: list = []
         self._ctx_tipo:      Optional[str] = None   # tipo TT del dispositivo actual
-        self._ctx_attr_tipo: Optional[str] = None
-        self._ultimo_tipo:   Optional[str] = None
+        self._ctx_attr_tipo: Optional[str] = None   # en caso de detectarse un punto se guarda el atributo aca
+        self._ultimo_tipo:   Optional[str] = None   # se guarda el ultimo tipo 
 
-    # ── API pública ───────────────────────────────────────────────
-
+    # Toma el archivo .smart y lo va dividiendo en lineas. Por ejemplo:
+    # IF | sensor_humo | == | TRUE | THEN
     def tokenizar(self, fuente: str, num_linea_base: int = 1) -> list:
         self.errores = []
         self.advertencias = []
@@ -662,6 +640,7 @@ class SmartHomeLexer:
         tokens.append(Token(TT.EOF, "", num_linea_base + len(fuente.splitlines()), 0))
         return tokens
 
+    # Hace lo mismo pero para el modo interactivo (el modo al que se accede si se cierra la ventana de tkinter)
     def tokenizar_linea(self, linea: str, num_linea: int = 1) -> list:
         self.errores = []
         self.advertencias = []
@@ -672,8 +651,6 @@ class SmartHomeLexer:
 
     def reset_contexto_interactivo(self):
         self._reset_ctx()
-
-    # ── Internos ──────────────────────────────────────────────────
 
     def _reset_ctx(self):
         self._ctx_tipo      = None
@@ -714,7 +691,7 @@ class SmartHomeLexer:
                 break
 
             # Caso especial: _clasificar() detectó una palabra reservada
-            # mal escrita (ej. "OFFF" cerca de "OFF"). El "valor" ya trae
+            # mal escrita. Ejemplo: "OFFF" cerca de "OFF"), el "valor" ya trae
             # el mensaje de error armado, en vez de ser el texto del token.
             if tipo == TT.ERROR_LEX:
                 self.errores.append(
@@ -792,9 +769,9 @@ class SmartHomeLexer:
         if c == '.': return (TT.PUNTO, '.', pos+1)
 
         # 13-14. Número (flotante o entero)
-        # IMPORTANTE: antes de aceptar el número suelto, verificamos si
+        # Antes de aceptar el número suelto, verificamos si
         # justo después viene un sufijo de unidad MAL ESCRITO (ej. "500luxx",
-        # "80%basura", "25°F"). Si lo detectamos, NO devolvemos el número:
+        # "25°F"). Si lo detectamos, no devolvemos el número: 
         # dejamos que el llamador reciba None y _detectar_invalido() genere
         # el error específico, en vez de partirlo en ENTERO + IDENTIFICADOR.
         if c == '-' or _es_digito(c):
@@ -892,23 +869,7 @@ class SmartHomeLexer:
         self._ultimo_tipo = tt
 
     def _validar_rango(self, tok: Token) -> None:
-        """
-        Valida el rango numérico de literales TEMPERATURA, PORCENTAJE
-        e ILUMINANCIA en dos niveles:
 
-          1. RANGO ABSOLUTO (siempre, tenga o no contexto de dispositivo):
-             ¿el valor cabe dentro del límite más amplio que existe para
-             ese tipo de unidad en TODO el lenguaje? Si no, es un ERROR
-             LÉXICO, porque ningún sensor/atributo podría aceptarlo jamás.
-             Ej.: 2500lux, 300%, 200°C → siempre inválidos, haya o no
-             un sensor/actuador detrás.
-
-          2. RANGO ESPECÍFICO (solo si hay contexto de dispositivo):
-             ¿el valor respeta el rango particular de ESE sensor o
-             atributo? Si no, es una ADVERTENCIA semántica temprana
-             (ej. 35°C es válido como temperatura en general, pero
-             excede el rango de aire_.temp_obj que es 16-30°C).
-        """
         if tok.tipo not in _EXTRACTOR:
             return
 
@@ -917,7 +878,7 @@ class SmartHomeLexer:
         except (ValueError, AttributeError):
             return
 
-        # ── 1. Validación de rango ABSOLUTO (siempre se ejecuta) ────
+        # ── 1. Validación de rango ABSOLUTO (siempre se ejecuta) 
         rango_abs = RANGOS_ABSOLUTOS_POR_TIPO.get(tok.tipo)
         if rango_abs:
             abs_min, abs_max, abs_desc = rango_abs
@@ -928,7 +889,7 @@ class SmartHomeLexer:
                 )
                 return   # ya es invalido en cualquier contexto, no seguir
 
-        # ── 2. Validación de rango ESPECÍFICO (solo con contexto) ───
+        # ── 2. Validación de rango ESPECÍFICO (solo con contexto)
         if self._ctx_tipo is None:
             return
         es_sensor  = self._ctx_tipo in TT.SENSORES
@@ -953,9 +914,7 @@ class SmartHomeLexer:
             )
 
 
-# ======================================================================
 #  10. MODOS DE EJECUCIÓN
-# ======================================================================
 
 def modo_interactivo():
     lexer     = SmartHomeLexer()
