@@ -828,4 +828,21 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    # ==================================================================
+    #  13. EJECUCION COMO .EXE (doble clic)
+    # ==================================================================
+    # Cuando este script se empaqueta con PyInstaller y el usuario lo
+    # ejecuta con doble clic, la consola se abre y se cierra sola apenas
+    # termina, sin dar tiempo a leer los errores. Con sys.exit() ademas
+    # se dispararia un traceback feo en una consola que ya se cerro.
+    # Por eso envolvemos main() en un try/except y agregamos un input()
+    # al final para que la ventana quede abierta hasta que el usuario
+    # presione ENTER.
+    try:
+        main()
+    except SystemExit:
+        pass  # sys.exit(1) / sys.exit(2) ya imprimieron su mensaje
+    except Exception as e:
+        print(f"\n  ERROR INESPERADO: {e}")
+    finally:
+        input("\nPresione ENTER para salir...")
